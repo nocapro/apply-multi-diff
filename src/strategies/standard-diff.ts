@@ -1,11 +1,6 @@
-type DiffError = {
-  code: string;
-  message: string;
-};
-
-type ApplyDiffResult =
-  | { success: true; content: string }
-  | { success: false; error: DiffError };
+import { ERROR_CODES } from "../constants";
+import type { ApplyDiffResult } from "../types";
+import { createErrorResult } from "../utils/error";
 
 type Hunk = {
   originalStartLine: number;
@@ -204,14 +199,10 @@ export const applyDiff = (
 ): ApplyDiffResult => {
   const hunks = parseHunks(diffContent);
   if (!hunks) {
-    return {
-      success: false,
-      error: {
-        code: "INVALID_DIFF_FORMAT",
-        message:
-          "Invalid diff format. Could not parse any hunks from the diff content.",
-      },
-    };
+    return createErrorResult(
+      ERROR_CODES.INVALID_DIFF_FORMAT,
+      "Invalid diff format. Could not parse any hunks from the diff content."
+    );
   }
 
   for (let i = 0; i < hunks.length; i++) {
@@ -224,14 +215,10 @@ export const applyDiff = (
         Math.max(h1.originalStartLine, h2.originalStartLine) <=
         Math.min(h1End, h2End)
       ) {
-        return {
-          success: false,
-          error: {
-            code: "OVERLAPPING_HUNKS",
-            message:
-              "Hunks overlap. The provided diff contains multiple change hunks that target the same or overlapping line ranges, creating an ambiguity that cannot be resolved.",
-          },
-        };
+        return createErrorResult(
+          ERROR_CODES.OVERLAPPING_HUNKS,
+          "Hunks overlap. The provided diff contains multiple change hunks that target the same or overlapping line ranges, creating an ambiguity that cannot be resolved."
+        );
       }
     }
   }
@@ -245,14 +232,10 @@ export const applyDiff = (
     } else {
       const subHunks = splitHunk(hunk);
       if (subHunks.length <= 1) {
-        return {
-          success: false,
-          error: {
-            code: "CONTEXT_MISMATCH",
-            message:
-              "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful.",
-          },
-        };
+        return createErrorResult(
+          ERROR_CODES.CONTEXT_MISMATCH,
+          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
+        );
       }
 
       let allApplied = true;
@@ -266,14 +249,10 @@ export const applyDiff = (
         }
       }
       if (!allApplied) {
-        return {
-          success: false,
-          error: {
-            code: "CONTEXT_MISMATCH",
-            message:
-              "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful.",
-          },
-        };
+        return createErrorResult(
+          ERROR_CODES.CONTEXT_MISMATCH,
+          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
+        );
       }
     }
   }

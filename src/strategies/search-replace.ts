@@ -1,11 +1,6 @@
-type DiffError = {
-  code: string;
-  message: string;
-};
-
-type ApplyDiffResult =
-  | { success: true; content: string }
-  | { success: false; error: DiffError };
+import { ERROR_CODES } from "../constants";
+import type { ApplyDiffResult } from "../types";
+import { createErrorResult } from "../utils/error";
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
@@ -89,14 +84,10 @@ export const applyDiff = (
   );
 
   if (parts.length < 4) {
-    return {
-      success: false,
-      error: {
-        code: "INVALID_DIFF_FORMAT",
-        message:
-          "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers.",
-      },
-    };
+    return createErrorResult(
+      ERROR_CODES.INVALID_DIFF_FORMAT,
+      "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers."
+    );
   }
 
   // Using .trim() is too aggressive and removes indentation.
@@ -110,14 +101,10 @@ export const applyDiff = (
 
   if (searchBlock === "") {
     if (typeof options.start_line !== "number") {
-      return {
-        success: false,
-        error: {
-          code: "INSERTION_REQUIRES_LINE_NUMBER",
-          message:
-            "Insertion requires a start_line. The SEARCH block was empty, but no start_line was provided to specify the insertion point.",
-        },
-      };
+      return createErrorResult(
+        ERROR_CODES.INSERTION_REQUIRES_LINE_NUMBER,
+        "Insertion requires a start_line. The SEARCH block was empty, but no start_line was provided to specify the insertion point."
+      );
     }
     const lines = original_content.split("\n");
     const insertionIndex = Math.max(0, options.start_line - 1);
@@ -132,13 +119,10 @@ export const applyDiff = (
     const { start_line, end_line } = options;
 
     if (start_line < 1 || end_line > lines.length || start_line > end_line) {
-      return {
-        success: false,
-        error: {
-          code: "INVALID_LINE_RANGE",
-          message: "Invalid line range for constrained search.",
-        },
-      };
+      return createErrorResult(
+        ERROR_CODES.INVALID_LINE_RANGE,
+        "Invalid line range for constrained search."
+      );
     }
 
     const preSlice = lines.slice(0, start_line - 1);
@@ -147,13 +131,10 @@ export const applyDiff = (
 
     const targetText = targetSlice.join("\n");
     if (!targetText.includes(searchBlock)) {
-      return {
-        success: false,
-        error: {
-          code: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
-          message: "Search block not found in the specified line range.",
-        },
-      };
+      return createErrorResult(
+        ERROR_CODES.SEARCH_BLOCK_NOT_FOUND_IN_RANGE,
+        "Search block not found in the specified line range."
+      );
     }
     const newTargetText = targetText.replace(searchBlock, replaceBlock);
 
@@ -166,14 +147,10 @@ export const applyDiff = (
   }
 
   if (!original_content.includes(searchBlock)) {
-    return {
-      success: false,
-      error: {
-        code: "SEARCH_BLOCK_NOT_FOUND",
-        message:
-          "Search block not found in the original content. The content to be replaced could not be located in the file.",
-      },
-    };
+    return createErrorResult(
+      ERROR_CODES.SEARCH_BLOCK_NOT_FOUND,
+      "Search block not found in the original content. The content to be replaced could not be located in the file."
+    );
   }
 
   let newContent = original_content.replace(searchBlock, replaceBlock);
