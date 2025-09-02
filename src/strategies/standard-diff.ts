@@ -1,6 +1,11 @@
+type DiffError = {
+  code: string;
+  message: string;
+};
+
 type ApplyDiffResult =
   | { success: true; content: string }
-  | { success: false; error: Error };
+  | { success: false; error: DiffError };
 
 type Hunk = {
   originalStartLine: number;
@@ -9,20 +14,37 @@ type Hunk = {
 };
 
 export const getToolDescription = (cwd: string): string => {
-  return `Modify a file using the standard unified diff format.
-The current working directory is ${cwd}.
-The diff format is:
+  return `apply_diff Tool: Standard Diff Format
+
+Applies changes to a single file using the standard unified diff format (the same format used by \`git diff\`). This tool is highly resilient and can apply partial changes even if some parts of the diff do not match perfectly, by intelligently splitting changes into smaller parts.
+
+Parameters:
+  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
+  :diff_content: (required) A string containing the changes in the unified diff format.
+
+Format Requirements:
+The \`diff_content\` must start with \`---\` and \`+++\` headers, followed by one or more \`@@ ... @@\` hunk headers.
+
+- Lines starting with \` \` (a space) are context and must match the original file.
+- Lines starting with \`-\` will be removed.
+- Lines starting with \`+\` will be added.
+
+Example:
+
+<apply_diff file_path="src/component.tsx">
 \`\`\`diff
---- a/path/to/original_file.ext
-+++ b/path/to/modified_file.ext
-@@ -l,c +l',c' @@
- unchanged line
--deleted line
-+added line
+--- a/src/component.tsx
++++ b/src/component.tsx
+@@ -10,7 +10,8 @@
+ function MyComponent() {
+-  const [count, setCount] = useState(0);
++  const [count, setCount] = useState(1);
++  const [name, setName] = useState('');
+
+   return (
+     <div>
 \`\`\`
-- The file paths (---, +++) and line numbers (@@ @@) are required.
-- Provide context lines (unchanged lines) around your changes.
-`;
+</apply_diff>`;
 };
 
 const parseHunks = (diffContent: string): Hunk[] | null => {
@@ -53,6 +75,27 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
+const levenshtein = (s1: string, s2: string): number => {
+  if (s1.length < s2.length) {
+    return levenshtein(s2, s1);
+  }
+  if (s2.length === 0) {
+    return s1.length;
+  }
+  let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
+  for (let i = 0; i < s1.length; i++) {
+    let currentRow = [i + 1];
+    for (let j = 0; j < s2.length; j++) {
+      const insertions = previousRow[j + 1] + 1;
+      const deletions = currentRow[j] + 1;
+      const substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
+      currentRow.push(Math.min(insertions, deletions, substitutions));
+    }
+    previousRow = currentRow;
+  }
+  return previousRow[previousRow.length - 1];
+};
+
 const applyHunk = (
   sourceLines: readonly string[],
   hunk: Hunk
@@ -79,25 +122,56 @@ const applyHunk = (
     return { success: true, newLines: result };
   }
 
-  let matchIndex = -1;
+  let bestMatchIndex = -1;
+  let minDistance = Infinity;
+  const patternText = pattern.join("\n");
+  // Don't allow fuzzy matching for very small patterns to avoid incorrect matches.
+  const useFuzzy = patternText.length > 20;
+  const maxDistanceThreshold = Math.max(
+    5,
+    Math.floor(patternText.length * 0.4)
+  );
+
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const slice = sourceLines.slice(i, i + pattern.length);
-    if (slice.every((line, j) => line === pattern[j])) {
-      matchIndex = i;
-      break;
+    const sliceText = slice.join("\n");
+    const distance = useFuzzy
+      ? levenshtein(patternText, sliceText)
+      : sliceText === patternText
+        ? 0
+        : Infinity;
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestMatchIndex = i;
     }
+    if (distance === 0) break; // Perfect match found
   }
 
-  if (matchIndex === -1) return { success: false };
+  if (bestMatchIndex === -1 || (useFuzzy && minDistance > maxDistanceThreshold)) {
+    return { success: false };
+  }
 
-  const result = [...sourceLines.slice(0, matchIndex)];
+  const result: string[] = [...sourceLines.slice(0, bestMatchIndex)];
+  let sourceIdx = bestMatchIndex;
+
   for (const hunkLine of hunk.lines) {
-    if (hunkLine.startsWith(" ") || hunkLine.startsWith("+")) {
-      result.push(hunkLine.substring(1));
+    const lineContent = hunkLine.substring(1);
+    if (hunkLine.startsWith("+")) {
+      result.push(lineContent);
+    } else if (hunkLine.startsWith(" ")) {
+      // For context lines, use the content from the source file to preserve it
+      // perfectly, especially after a fuzzy match.
+      if (sourceIdx < sourceLines.length) {
+        result.push(sourceLines[sourceIdx]);
+      }
+      sourceIdx++;
+    } else if (hunkLine.startsWith("-")) {
+      // For removed lines, just advance the source pointer.
+      sourceIdx++;
     }
   }
-  result.push(...sourceLines.slice(matchIndex + pattern.length));
-
+  result.push(...sourceLines.slice(sourceIdx));
   return { success: true, newLines: result };
 };
 
@@ -129,7 +203,16 @@ export const applyDiff = (
   diffContent: string
 ): ApplyDiffResult => {
   const hunks = parseHunks(diffContent);
-  if (!hunks) return { success: false, error: new Error("Invalid diff format") };
+  if (!hunks) {
+    return {
+      success: false,
+      error: {
+        code: "INVALID_DIFF_FORMAT",
+        message:
+          "Invalid diff format. Could not parse any hunks from the diff content.",
+      },
+    };
+  }
 
   for (let i = 0; i < hunks.length; i++) {
     for (let j = i + 1; j < hunks.length; j++) {
@@ -141,7 +224,14 @@ export const applyDiff = (
         Math.max(h1.originalStartLine, h2.originalStartLine) <=
         Math.min(h1End, h2End)
       ) {
-        return { success: false, error: new Error("Hunks overlap") };
+        return {
+          success: false,
+          error: {
+            code: "OVERLAPPING_HUNKS",
+            message:
+              "Hunks overlap. The provided diff contains multiple change hunks that target the same or overlapping line ranges, creating an ambiguity that cannot be resolved.",
+          },
+        };
       }
     }
   }
@@ -157,7 +247,11 @@ export const applyDiff = (
       if (subHunks.length <= 1) {
         return {
           success: false,
-          error: new Error("Could not apply modification"),
+          error: {
+            code: "CONTEXT_MISMATCH",
+            message:
+              "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful.",
+          },
         };
       }
 
@@ -174,7 +268,11 @@ export const applyDiff = (
       if (!allApplied) {
         return {
           success: false,
-          error: new Error("Could not apply modification"),
+          error: {
+            code: "CONTEXT_MISMATCH",
+            message:
+              "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful.",
+          },
         };
       }
     }

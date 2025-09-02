@@ -169,4 +169,4 @@ dist
 .pnp.\*
 
 # relay state
-/.relay/
+#/.relay/

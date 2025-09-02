@@ -34,7 +34,8 @@
       "repomix.config.json",
       "README.md",
       ".relay",
-      "docs"
+      "docs",
+      "tsconfig.tsbuildinfo"
     ]
   },
   "security": {

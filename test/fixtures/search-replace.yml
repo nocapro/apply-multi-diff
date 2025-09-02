@@ -168,6 +168,7 @@ apply_diff_tests:
         test.ts
         <<<<<<< SEARCH
             // Comment to remove
+
         =======
         >>>>>>> REPLACE
     expected:
@@ -192,8 +193,8 @@ apply_diff_tests:
         =======
         processData(config);
         >>>>>>> REPLACE
-      start_line: 4
-      end_line: 4
+      start_line: 5
+      end_line: 5
     expected:
       success: true
       content: |

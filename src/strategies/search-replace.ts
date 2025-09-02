@@ -1,24 +1,61 @@
+type DiffError = {
+  code: string;
+  message: string;
+};
+
 type ApplyDiffResult =
   | { success: true; content: string }
-  | { success: false; error: Error };
+  | { success: false; error: DiffError };
 
 export const getToolDescription = (cwd: string): string => {
-  return `Modify a file using a search/replace diff format.
-The current working directory is ${cwd}.
-The diff format is:
-\`\`\`
+  return `apply_diff Tool: Search and Replace
+
+Applies a targeted code change to a single file using a search-and-replace format. This is ideal for precise modifications, insertions, or deletions of specific code blocks.
+
+Parameters:
+  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
+  :diff_content: (required) A string containing the search and replace blocks.
+  :start_line: (optional) The line number in the original file where the search block is expected to start. Use this to resolve ambiguity when the same code appears multiple times. Required for insertions.
+  :end_line: (optional) The line number in the original file where the search block is expected to end.
+
+Format Requirements:
+The \`diff_content\` must follow this structure:
+
+<file_path_ignored_but_useful_for_context>
 <<<<<<< SEARCH
 [content to find]
 =======
 [content to replace with]
 >>>>>>> REPLACE
-\`\`\`
 
-- To add code, leave the SEARCH block empty. You must specify 'start_line'.
-- To delete code, leave the REPLACE block empty.
-- To modify a specific instance of duplicated code, provide 'start_line' and 'end_line' to constrain the search.
-- Leading line numbers in diffs (e.g., "27 | console.log...") are automatically ignored.
-`;
+Special Cases:
+- To INSERT code, leave the SEARCH block empty and provide a \`start_line\`. The new code will be inserted before that line.
+- To DELETE code, leave the REPLACE block empty.
+
+Examples:
+
+1. Basic Replace:
+<apply_diff file_path="src/utils.ts">
+  src/utils.ts
+  <<<<<<< SEARCH
+  function oldFunction() {
+    return 1;
+  }
+  =======
+  function newFunction() {
+    return 2;
+  }
+  >>>>>>> REPLACE
+</apply_diff>
+
+2. Insertion (note the empty SEARCH block and \`start_line\`):
+<apply_diff file_path="src/app.ts" start_line="5">
+  src/app.ts
+  <<<<<<< SEARCH
+  =======
+  import { NewDependency } from './new-dependency';
+  >>>>>>> REPLACE
+</apply_diff>`;
 };
 
 const stripLineNumbers = (text: string): string => {
@@ -47,18 +84,33 @@ export const applyDiff = (
   );
 
   if (parts.length < 4) {
-    return { success: false, error: new Error("Invalid diff format") };
+    return {
+      success: false,
+      error: {
+        code: "INVALID_DIFF_FORMAT",
+        message:
+          "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers.",
+      },
+    };
   }
 
+  // Using .trim() is too aggressive and removes indentation.
+  // We want to remove the leading/trailing newlines that result from the split,
+  // but preserve the indentation of the code itself.
+  const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n\s*$/, "");
   let [, searchBlock, replaceBlock] = parts;
-  searchBlock = stripLineNumbers(searchBlock.trim());
-  replaceBlock = stripLineNumbers(replaceBlock.trim());
+  searchBlock = stripLineNumbers(cleanBlock(searchBlock));
+  replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
 
   if (searchBlock === "") {
     if (typeof options.start_line !== "number") {
       return {
         success: false,
-        error: new Error("Insertion requires a start_line"),
+        error: {
+          code: "INSERTION_REQUIRES_LINE_NUMBER",
+          message:
+            "Insertion requires a start_line. The SEARCH block was empty, but no start_line was provided to specify the insertion point.",
+        },
       };
     }
     const lines = original_content.split("\n");
@@ -74,7 +126,10 @@ export const applyDiff = (
     if (start_line < 1 || end_line > lines.length || start_line > end_line) {
       return {
         success: false,
-        error: new Error("Invalid line range for constrained search."),
+        error: {
+          code: "INVALID_LINE_RANGE",
+          message: "Invalid line range for constrained search.",
+        },
       };
     }
 
@@ -86,9 +141,10 @@ export const applyDiff = (
     if (!targetText.includes(searchBlock)) {
       return {
         success: false,
-        error: new Error(
-          "Search block not found in the specified line range."
-        ),
+        error: {
+          code: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
+          message: "Search block not found in the specified line range.",
+        },
       };
     }
     const newTargetText = targetText.replace(searchBlock, replaceBlock);
@@ -102,7 +158,14 @@ export const applyDiff = (
   }
 
   if (!original_content.includes(searchBlock)) {
-    return { success: false, error: new Error("Search block not found") };
+    return {
+      success: false,
+      error: {
+        code: "SEARCH_BLOCK_NOT_FOUND",
+        message:
+          "Search block not found in the original content. The content to be replaced could not be located in the file.",
+      },
+    };
   }
 
   const newContent = original_content.replace(searchBlock, replaceBlock);
