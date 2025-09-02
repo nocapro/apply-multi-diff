@@ -1,0 +1,59 @@
+apply_diff_tests:
+  - name: insertion-with-start-line
+    description: Should insert code at a specific line when the search block is empty
+    input:
+      original_content: |
+        function test() {
+            const x = 1;
+            return x;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+            console.log("Adding log");
+        >>>>>>> REPLACE
+      start_line: 2
+      end_line: 2
+    expected:
+      success: true
+      content: |
+        function test() {
+            console.log("Adding log");
+            const x = 1;
+            return x;
+        }
+  - name: deletion
+    description: Should delete code when the replace block is empty
+    input:
+      original_content: |
+
+        function test() {
+            // Comment to remove
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // Comment to remove
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+
+        function test() {
+        }
+  - name: empty-file-insertion
+    description: Should insert content into an empty file without extra newlines
+    input:
+      original_content: ""
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        Hello, World!
+        >>>>>>> REPLACE
+      start_line: 1
+    expected:
+      success: true
+      content: "Hello, World!"

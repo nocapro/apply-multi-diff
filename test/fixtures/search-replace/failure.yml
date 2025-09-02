@@ -1,0 +1,58 @@
+apply_diff_tests:
+  - name: fail-on-no-match
+    description: Should fail gracefully if the search content does not match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("wrong")
+        }
+        =======
+        function hello() {
+            console.log("hello world")
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+  - name: fail-on-invalid-format
+    description: Should fail gracefully if the diff format is invalid
+    input:
+      original_content: "function hello() {}"
+      diff_content: "This is not a valid format"
+    expected:
+      success: false
+      reason: "Invalid diff format"
+  - name: insertion-fail-without-line-number
+    description: Should fail an insertion if no start_line is provided
+    input:
+      original_content: "function test() {}"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("test");
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Insertion requires a start_line"
+  - name: fuzzy-match-rejection-on-string-literal-change
+    description: Should reject a fuzzy match that changes the semantic meaning of a string literal
+    input:
+      original_content: |
+        logger.error("Failed to connect to database");
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        logger.error("Failed to load configuration");
+        =======
+        Sentry.captureMessage("Failed to load configuration");
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"

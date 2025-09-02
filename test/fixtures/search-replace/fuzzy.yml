@@ -1,0 +1,61 @@
+apply_diff_tests:
+  - name: fuzzy-match-on-minor-difference
+    description: Should find and replace content that is slightly different from the search block
+    input:
+      original_content: |
+        function calculate() {
+          // A comment
+          const result = 1 + 1;
+          return result;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+          // An old comment
+          const result = 1 + 1;
+        =======
+          const result = 2 * 2; // updated logic
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function calculate() {
+          const result = 2 * 2; // updated logic
+          return result;
+        }
+  - name: fuzzy-delete
+    description: Should delete a block of code even with minor differences
+    input:
+      original_content: |
+        function hello() {
+            // This is a very important comment
+            console.log("hello");
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // This is an important comment
+            console.log("hello");
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+        }
+  - name: fuzzy-match-accept-minor-string-literal-change
+    description: Should accept a fuzzy match with a minor, non-semantic change in a string literal
+    input:
+      original_content: |
+        logger.error("Failed to connect to database!"); // User added exclamation
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        logger.error("Failed to connect to database");
+        =======
+        Sentry.captureMessage("Failed to connect to database!");
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        Sentry.captureMessage("Failed to connect to database!"); // User added exclamation

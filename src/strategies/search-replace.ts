@@ -205,7 +205,18 @@ export const applyDiff = (
       // Infer indentation from the insertion line or surrounding lines
       let indent = "";
       if (insertionIndex < lines.length) {
-        indent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
+        const currentLineIndent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
+        if (insertionIndex > 0) {
+          const prevLineIndent = lines[insertionIndex - 1].match(/^[ \t]*/)?.[0] || "";
+          // If current line is an outdent (like a closing brace), use previous line's indent
+          if (prevLineIndent.length > currentLineIndent.length && lines[insertionIndex].trim().length > 0) {
+            indent = prevLineIndent;
+          } else {
+            indent = currentLineIndent;
+          }
+        } else {
+          indent = currentLineIndent;
+        }
       } else if (lines.length > 0) {
         // If inserting at the very end, use indent of last line
         indent = lines[lines.length - 1].match(/^[ \t]*/)?.[0] || "";

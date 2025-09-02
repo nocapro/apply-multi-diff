@@ -1,0 +1,27 @@
+apply_diff_tests:
+  - name: constrained-search-target-specific-duplicate
+    description: Should use line numbers to target a specific instance of duplicate code
+    input:
+      original_content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData();
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        processData();
+        =======
+        processData(config);
+        >>>>>>> REPLACE
+      start_line: 5
+      end_line: 5
+    expected:
+      success: true
+      content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData(config);

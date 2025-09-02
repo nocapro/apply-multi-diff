@@ -542,7 +542,7 @@ const findAndApplyHunk = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  const maxDistanceThreshold = Math.floor(patternText.length * 0.35); // 35% difference tolerance
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.30); // 30% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
@@ -1944,8 +1944,8 @@ const findBestMatch = (
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
   const maxDistanceThreshold = Math.max(
-    5, // a minimum for short blocks
-    Math.floor(dedentedSearchText.length * 0.3) // 30% tolerance for fuzzy matching
+    10, // a minimum for short blocks or substring-like matches
+    Math.floor(dedentedSearchText.length * 0.5) // 50% tolerance for fuzzy matching
   );
 
   const searchStart = startLine - 1;
@@ -1984,9 +1984,8 @@ const findBestMatch = (
       if (searchStringMatch && sliceStringMatch) {
         const searchString = searchStringMatch[1];
         const sliceString = sliceStringMatch[1];
-        
-        // If the strings are completely different (not just comment changes), reject
-        if (searchString !== sliceString && !searchString.includes(sliceString) && !sliceString.includes(searchString)) {
+
+        if (levenshtein(searchString, sliceString) > searchString.length * 0.5) {
           return null;
         }
       }

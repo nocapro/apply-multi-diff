@@ -1,0 +1,13 @@
+# Tests for the `getToolDescription` function
+tool_description_tests:
+  - name: description-contains-key-elements
+    description: Should generate a description that includes the CWD and format requirements
+    input:
+      cwd: "/mock/workspace"
+    expected_to_contain:
+      - "current working directory /mock/workspace"
+      - "<<<<<<< SEARCH"
+      - "======="
+      - ">>>>>>> REPLACE"
+      - "start_line"
+      - "end_line"

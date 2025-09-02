@@ -1,0 +1,11 @@
+# Tests for the `getToolDescription` function
+tool_description_tests:
+  - name: description-contains-key-elements
+    description: Should generate a description that includes CWD and standard diff format markers
+    input:
+      cwd: "/mock/workspace"
+    expected_to_contain:
+      - "current working directory /mock/workspace"
+      - "--- a/src/component.tsx"
+      - "+++ b/src/component.tsx"
+      - "@@ ... @@"

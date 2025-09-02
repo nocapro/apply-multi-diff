@@ -37,11 +37,30 @@ interface TestFixtures {
   }[];
 }
 
-// Load and parse the YAML fixture
-const fixturePath = path.join(__dirname, "../fixtures/search-replace.yml");
-const fixtures = yaml.load(
-  fs.readFileSync(fixturePath, "utf-8")
-) as TestFixtures;
+const loadFixturesFromDir = (dirPath: string): TestFixtures => {
+  const allFixtures: TestFixtures = {
+    tool_description_tests: [],
+    apply_diff_tests: [],
+  };
+  const files = fs.readdirSync(dirPath);
+  for (const file of files) {
+    if (path.extname(file) === ".yml" || path.extname(file) === ".yaml") {
+      const filePath = path.join(dirPath, file);
+      const fixture = yaml.load(
+        fs.readFileSync(filePath, "utf-8")
+      ) as Partial<TestFixtures>;
+      if (fixture.tool_description_tests) {
+        allFixtures.tool_description_tests.push(...fixture.tool_description_tests);
+      }
+      if (fixture.apply_diff_tests) {
+        allFixtures.apply_diff_tests.push(...fixture.apply_diff_tests);
+      }
+    }
+  }
+  return allFixtures;
+};
+const fixturePath = path.join(__dirname, "../fixtures/search-replace");
+const fixtures = loadFixturesFromDir(fixturePath);
 
 // --- Test Suite ---
 

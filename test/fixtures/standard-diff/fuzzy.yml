@@ -1,0 +1,238 @@
+# Tests for fuzzy matching and hunk splitting
+apply_diff_tests:
+  - name: fuzzy-match-with-drifted-context
+    description: Should apply a hunk correctly even if the context has minor changes
+    input:
+      original_content: |
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        contract SimpleStore {
+            uint256 private _value; // The value stored
+
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
+      diff_content: |
+        --- a/SimpleStore.sol
+        +++ b/SimpleStore.sol
+        @@ -3,6 +3,10 @@
+         
+         contract SimpleStore {
+             uint256 private _value; // The value stored
+        +
+        +    function getValue() public view returns (uint256) {
+        +        return _value;
+        +    }
+         
+             function setValue(uint256 value) public {
+                 _value = value;
+    expected:
+      success: true
+      content: |
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        contract SimpleStore {
+            uint256 private _value; // The value stored
+
+            function getValue() public view returns (uint256) {
+                return _value;
+            }
+
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
+
+  - name: fallback-hunk-splitting-on-failure
+    description: Should split a failing hunk into smaller parts and apply them individually
+    input:
+      original_content: |
+        import { readFile } from 'fs';
+        import { Logger } from './logger';
+
+        const logger = new Logger();
+
+        async function processFile(filePath: string) {
+          try {
+            const data = await readFile(filePath, 'utf8');
+            logger.info('File read successfully');
+            return data;
+          } catch (error) {
+            logger.error('Failed to read file:', error);
+            throw error;
+          }
+        }
+      diff_content: |
+        --- a/file.ts
+        +++ b/file.ts
+        @@ -1,13 +1,13 @@
+         import { readFile } from 'fs';
+        -import { Logger } from './logger';
+        +import { Logger } from './utils/logger';
+         
+         const logger = new Logger(); // This context line is correct
+         
+         async function processFile(filePath: string) { // This context line is also correct
+           try {
+             const data = await readFile(filePath, 'utf8');
+        -    logger.info('File read successfully');
+        +    logger.info(`File ${filePath} read successfully`);
+             return data;
+           } catch (error) {
+             logger.error('Failed to read file:', error);
+             throw error;
+           }
+         }
+    expected:
+      success: true
+      content: |
+        import { readFile } from 'fs';
+        import { Logger } from './utils/logger';
+
+        const logger = new Logger();
+
+        async function processFile(filePath: string) {
+          try {
+            const data = await readFile(filePath, 'utf8');
+            logger.info(`File ${filePath} read successfully`);
+            return data;
+          } catch (error) {
+            logger.error('Failed to read file:', error);
+            throw error;
+          }
+        }
+  - name: fuzzy-match-with-actual-drift
+    description: Should apply a hunk using fuzzy matching when context has drifted due to new comments
+    input:
+      original_content: |
+        // User added a comment here
+        class MyComponent extends React.Component {
+          render() {
+            const { value } = this.props;
+            // And another comment here
+            return <div>{value}</div>;
+          }
+        }
+      diff_content: |
+        --- a/component.jsx
+        +++ b/component.jsx
+        @@ -2,5 +2,5 @@
+         class MyComponent extends React.Component {
+           render() {
+             const { value } = this.props;
+        -    return <div>{value}</div>;
+        +    return <p>{value}</p>;
+           }
+         }
+    expected:
+      success: true
+      content: |
+        // User added a comment here
+        class MyComponent extends React.Component {
+          render() {
+            const { value } = this.props;
+            // And another comment here
+            return <p>{value}</p>;
+          }
+        }
+
+  - name: hunk-splitting-with-intermediate-user-edit
+    description: Should succeed by splitting a hunk when a user edit breaks its contiguity
+    input:
+      original_content: |
+        function setup() {
+            console.log("Initializing part 1...");
+            // init
+        }
+
+        // User added a new function here, breaking the hunk's contiguity
+        function helper() {
+            return true;
+        }
+
+        function tearDown() {
+            console.log("Tearing down part 3...");
+            // teardown
+        }
+      diff_content: |
+        --- a/file.js
+        +++ b/file.js
+        @@ -1,8 +1,8 @@
+         function setup() {
+        -    console.log("Initializing part 1...");
+        -    // init
+        +    console.log("Initializing part 1... DONE");
+        +    // initialize
+         }
+         
+         function tearDown() {
+        -    console.log("Tearing down part 3...");
+        -    // teardown
+        +    console.log("Tearing down part 3... DONE");
+        +    // deinitialize
+         }
+    expected:
+      success: true
+      content: |
+        function setup() {
+            console.log("Initializing part 1... DONE");
+            // initialize
+        }
+
+        // User added a new function here, breaking the hunk's contiguity
+        function helper() {
+            return true;
+        }
+
+        function tearDown() {
+            console.log("Tearing down part 3... DONE");
+            // deinitialize
+        }
+
+  - name: hunk-splitting-with-fuzzy-sub-hunk
+    description: Should split a hunk and then fuzzy-match a sub-hunk
+    input:
+      original_content: |
+        function partA() {
+            // original A content
+            // another line in A
+        }
+
+        // User added this function, breaking the hunk
+        function partB_user_added() {}
+
+        // User also modified this part slightly
+        function partC_modified_by_user() { // modified
+            // original C content
+        }
+      diff_content: |
+        --- a/file.js
+        +++ b/file.js
+        @@ -1,7 +1,7 @@
+         function partA() {
+        -    // original A content
+        -    // another line in A
+        +    // updated A content
+         }
+         
+         function partC() {
+        -    // original C content
+        +    // updated C content
+         }
+    expected:
+      success: true
+      content: |
+        function partA() {
+            // updated A content
+        }
+
+        // User added this function, breaking the hunk
+        function partB_user_added() {}
+
+        // User also modified this part slightly
+        function partC_modified_by_user() { // modified
+            // updated C content
+        }

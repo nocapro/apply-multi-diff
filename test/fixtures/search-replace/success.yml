@@ -1,0 +1,94 @@
+apply_diff_tests:
+  - name: replace-exact-match
+    description: Should replace content that is an exact match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("hello")
+        }
+        =======
+        function hello() {
+            console.log("hello world");
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+            console.log("hello world");
+        }
+
+  - name: multiple-blocks-in-one-call
+    description: Should process multiple search/replace blocks in a single operation
+    input:
+      original_content: |
+        const a = "apple";
+        const b = "banana";
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const a = "apple";
+        =======
+        const a = "apricot";
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        const b = "banana";
+        =======
+        const b = "blueberry";
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        const a = "apricot";
+        const b = "blueberry";
+
+  - name: sequential-overlapping-replace
+    description: Should handle sequential replacements where the second depends on the first
+    input:
+      original_content: |
+        function one() {
+            return 1;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function one() {
+            return 1;
+        }
+        =======
+        function two() {
+            return 2;
+        }
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        function two() {
+        =======
+        function two() { // Renamed
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function two() { // Renamed
+            return 2;
+        }
+
+  - name: replace-with-regex-special-chars
+    description: Should correctly replace content that contains special regex characters
+    input:
+      original_content: "const x = arr[0] + (y || 0);"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        arr[0] + (y || 0)
+        =======
+        arr[0] * (y || 1)
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "const x = arr[0] * (y || 1);"

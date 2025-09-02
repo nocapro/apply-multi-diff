@@ -1,0 +1,175 @@
+apply_diff_tests:
+  - name: preserve-indentation-on-addition
+    description: Should preserve original indentation when adding new lines
+    input:
+      original_content: |
+        class Example {
+            getValue() {
+                return this.value
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            getValue() {
+                return this.value
+            }
+        =======
+            getValue() {
+                // Add logging
+                console.log("Getting value");
+                return this.value;
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Example {
+            getValue() {
+                // Add logging
+                console.log("Getting value");
+                return this.value;
+            }
+        }
+  - name: indentation-agnostic-search-and-preserve
+    description: Should find content regardless of its indentation and preserve it on replace
+    input:
+      original_content: |
+            function test() {
+                return true;
+            }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function test() {
+            return true;
+        }
+        =======
+        function test() {
+            return false;
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+            function test() {
+                return false;
+            }
+  - name: respect-relative-indentation-in-replace
+    description: Should respect the relative indentation inside the REPLACE block
+    input:
+      original_content: |
+        class Test {
+            method() {
+                console.log("test");
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            method() {
+                console.log("test");
+            }
+        =======
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Test {
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+  - name: replace-with-complex-relative-indentation
+    description: Should correctly re-indent a replacement block with multiple indentation levels
+    input:
+      original_content: |
+        function outer() {
+            if (condition) {
+                process();
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        process();
+        =======
+        if (anotherCondition) {
+            process();
+        } else {
+            fallback();
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function outer() {
+            if (condition) {
+                if (anotherCondition) {
+                    process();
+                } else {
+                    fallback();
+                }
+            }
+        }
+  - name: insertion-with-inferred-indentation
+    description: Should insert code and correctly apply surrounding indentation
+    input:
+      original_content: |
+        function outer() {
+            if (true) {
+                // marker
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("inserted");
+        >>>>>>> REPLACE
+      start_line: 3
+    expected:
+      success: true
+      content: |
+        function outer() {
+            if (true) {
+                console.log("inserted");
+                // marker
+            }
+        }
+  - name: insertion-at-end-of-block-with-inferred-indentation
+    description: Should infer indentation from previous line when inserting before a closing brace
+    input:
+      original_content: |
+        function myFunc() {
+            console.log("hello");
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("world");
+        >>>>>>> REPLACE
+      start_line: 3
+    expected:
+      success: true
+      content: |
+        function myFunc() {
+            console.log("hello");
+            console.log("world");
+        }
