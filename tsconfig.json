@@ -1,4 +1,8 @@
 {
+  "include": [
+    "test",
+    "src"
+  ],
   "compilerOptions": {
     "lib": ["ESNext"],
     "module": "esnext",

@@ -66,10 +66,19 @@ describe("Standard Diff Strategy", () => {
         expect(result.success).toBe(testCase.expected.success);
 
         if (testCase.expected.success) {
-          expect(result.content).toBe(testCase.expected.content);
+          if (result.success) {
+            expect(result.content).toBe(testCase.expected.content ?? "");
+          } else {
+            throw new Error("Expected success but got failure");
+          }
         } else {
-          // For failed cases, check if the error message includes the expected reason
-          expect(result.error.message).toInclude(testCase.expected.reason);
+          if (!result.success) {
+            if (testCase.expected.reason) {
+              expect(result.error.message).toInclude(testCase.expected.reason);
+            }
+          } else {
+            throw new Error("Expected failure but got success");
+          }
         }
       });
     });
