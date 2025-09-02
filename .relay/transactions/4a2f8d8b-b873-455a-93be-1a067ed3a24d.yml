@@ -1,0 +1,247 @@
+uuid: 4a2f8d8b-b873-455a-93be-1a067ed3a24d
+projectId: diff-apply
+createdAt: '2025-09-02T05:18:36.720Z'
+linesAdded: 1
+linesRemoved: 1
+gitCommitMsg: 'fix: correctly handle empty blocks in search-replace'
+promptSummary: >-
+  The previous fix for search-replace.test.ts was incorrect. The test for
+  deletion is still failing with an extra newline.
+reasoning:
+  - >-
+    Alright, my last fix for the search-replace strategy was a swing and a miss.
+    It seems the issue is more subtle. The `cleanBlock` function isn't correctly
+    handling the empty `REPLACE` block for deletions, leaving trailing
+    whitespace that becomes an unwanted newline.
+  - >-
+    The original regex for cleaning the block's tail, `/\r?\n\s*$/`, only works
+    if there's a newline. For a deletion, the `REPLACE` block might just be a
+    newline and some spaces, which the original `cleanBlock` mishandles, leaving
+    the spaces.
+  - >-
+    I'm tweaking the regex to `(/(\r?\n)?\s*$/)`. This makes the trailing
+    newline optional before matching all trailing whitespace. It correctly turns
+    a block containing only whitespace/newlines into an empty string (fixing
+    deletion), while still correctly stripping only the trailing newline and
+    whitespace from blocks that contain actual code. This should fix the test.
+  - That should get things passing.
+operations:
+  - type: write
+    path: src/strategies/search-replace.ts
+    content: >-
+      --- src/strategies/search-replace.ts
+
+      +++ src/strategies/search-replace.ts
+
+      @@ -109,7 +109,7 @@
+         // Using .trim() is too aggressive and removes indentation.
+         // We want to remove the leading/trailing newlines that result from the split,
+         // but preserve the indentation of the code itself.
+      -  const cleanBlock = (block: string) => block.replace(/^\r?\n/,
+      "").replace(/\r?\n\s*$/, "");
+
+      +  const cleanBlock = (block: string) => block.replace(/^\r?\n/,
+      "").replace(/(\r?\n)?\s*$/, "");
+         let [, searchBlock, replaceBlock] = parts;
+         searchBlock = stripLineNumbers(cleanBlock(searchBlock));
+         replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
+    patchStrategy: new-unified
+snapshot:
+  src/strategies/search-replace.ts: >
+    type DiffError = {
+      code: string;
+      message: string;
+    };
+
+
+    type ApplyDiffResult =
+      | { success: true; content: string }
+      | { success: false; error: DiffError };
+
+    export const getToolDescription = (cwd: string): string => {
+      return `apply_diff Tool: Search and Replace
+
+    Applies a targeted code change to a single file using a search-and-replace
+    format. This is ideal for precise modifications, insertions, or deletions of
+    specific code blocks.
+
+
+    Parameters:
+      :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
+      :diff_content: (required) A string containing the search and replace blocks.
+      :start_line: (optional) The line number in the original file where the search block is expected to start. Use this to resolve ambiguity when the same code appears multiple times. Required for insertions.
+      :end_line: (optional) The line number in the original file where the search block is expected to end.
+
+    Format Requirements:
+
+    The \`diff_content\` must follow this structure:
+
+
+    <file_path_ignored_but_useful_for_context>
+
+    <<<<<<< SEARCH
+
+    [content to find]
+
+    =======
+
+    [content to replace with]
+
+    >>>>>>> REPLACE
+
+
+    Special Cases:
+
+    - To INSERT code, leave the SEARCH block empty and provide a \`start_line\`.
+    The new code will be inserted before that line.
+
+    - To DELETE code, leave the REPLACE block empty.
+
+
+    Examples:
+
+
+    1. Basic Replace:
+
+    <apply_diff file_path="src/utils.ts">
+      src/utils.ts
+      <<<<<<< SEARCH
+      function oldFunction() {
+        return 1;
+      }
+      =======
+      function newFunction() {
+        return 2;
+      }
+      >>>>>>> REPLACE
+    </apply_diff>
+
+
+    2. Insertion (note the empty SEARCH block and \`start_line\`):
+
+    <apply_diff file_path="src/app.ts" start_line="5">
+      src/app.ts
+      <<<<<<< SEARCH
+      =======
+      import { NewDependency } from './new-dependency';
+      >>>>>>> REPLACE
+    </apply_diff>`;
+
+    };
+
+
+    const stripLineNumbers = (text: string): string => {
+      return text
+        .split("\n")
+        .map((line) => line.replace(/^\s*\d+\s*\|\s*/, ""))
+        .join("\n");
+    };
+
+
+    export const applyDiff = (
+      original_content: string,
+      diff_content: string,
+      options: { start_line?: number; end_line?: number } = {}
+    ): ApplyDiffResult => {
+      let diff = diff_content;
+      const firstLineEnd = diff.indexOf("\n");
+      if (
+        firstLineEnd !== -1 &&
+        !diff.substring(0, firstLineEnd).includes("<<<<<<<")
+      ) {
+        diff = diff.substring(firstLineEnd + 1);
+      }
+
+      const parts = diff.split(
+        /^\s*<<<<<<< SEARCH\s*$|^\s*=======*\s*$|^\s*>>>>>>> REPLACE\s*$/m
+      );
+
+      if (parts.length < 4) {
+        return {
+          success: false,
+          error: {
+            code: "INVALID_DIFF_FORMAT",
+            message:
+              "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers.",
+          },
+        };
+      }
+
+      // Using .trim() is too aggressive and removes indentation.
+      // We want to remove the leading/trailing newlines that result from the split,
+      // but preserve the indentation of the code itself.
+      const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n$/, "");
+      let [, searchBlock, replaceBlock] = parts;
+      searchBlock = stripLineNumbers(cleanBlock(searchBlock));
+      replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
+
+      if (searchBlock === "") {
+        if (typeof options.start_line !== "number") {
+          return {
+            success: false,
+            error: {
+              code: "INSERTION_REQUIRES_LINE_NUMBER",
+              message:
+                "Insertion requires a start_line. The SEARCH block was empty, but no start_line was provided to specify the insertion point.",
+            },
+          };
+        }
+        const lines = original_content.split("\n");
+        const insertionIndex = Math.max(0, options.start_line - 1);
+        lines.splice(insertionIndex, 0, replaceBlock);
+        return { success: true, content: lines.join("\n") };
+      }
+
+      if (options.start_line && options.end_line) {
+        const lines = original_content.split("\n");
+        const { start_line, end_line } = options;
+
+        if (start_line < 1 || end_line > lines.length || start_line > end_line) {
+          return {
+            success: false,
+            error: {
+              code: "INVALID_LINE_RANGE",
+              message: "Invalid line range for constrained search.",
+            },
+          };
+        }
+
+        const preSlice = lines.slice(0, start_line - 1);
+        const targetSlice = lines.slice(start_line - 1, end_line);
+        const postSlice = lines.slice(end_line);
+
+        const targetText = targetSlice.join("\n");
+        if (!targetText.includes(searchBlock)) {
+          return {
+            success: false,
+            error: {
+              code: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
+              message: "Search block not found in the specified line range.",
+            },
+          };
+        }
+        const newTargetText = targetText.replace(searchBlock, replaceBlock);
+
+        const newContent = [
+          ...preSlice,
+          ...newTargetText.split("\n"),
+          ...postSlice,
+        ].join("\n");
+        return { success: true, content: newContent };
+      }
+
+      if (!original_content.includes(searchBlock)) {
+        return {
+          success: false,
+          error: {
+            code: "SEARCH_BLOCK_NOT_FOUND",
+            message:
+              "Search block not found in the original content. The content to be replaced could not be located in the file.",
+          },
+        };
+      }
+
+      const newContent = original_content.replace(searchBlock, replaceBlock);
+      return { success: true, content: newContent };
+    };
+approved: true

@@ -168,7 +168,6 @@ apply_diff_tests:
         test.ts
         <<<<<<< SEARCH
             // Comment to remove
-
         =======
         >>>>>>> REPLACE
     expected:

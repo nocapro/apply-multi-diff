@@ -18,6 +18,53 @@ tsconfig.json
 
 # Files
 
+## File: package.json
+```json
+{
+  "name": "diff-apply",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "bun-types": "latest",
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+## File: relay.config.json
+```json
+{
+  "$schema": "https://relay-code.dev/schema.json",
+  "projectId": "diff-apply",
+  "core": {
+    "logLevel": "info",
+    "enableNotifications": false,
+    "watchConfig": true
+  },
+  "watcher": {
+    "clipboardPollInterval": 2000,
+    "preferredStrategy": "auto"
+  },
+  "patch": {
+    "approvalMode": "auto",
+    "approvalOnErrorCount": 0,
+    "linter": "",
+    "preCommand": "",
+    "postCommand": "",
+    "minFileChanges": 0
+  },
+  "git": {
+    "autoGitBranch": false,
+    "gitBranchPrefix": "relay/",
+    "gitBranchTemplate": "gitCommitMsg"
+  }
+}
+```
+
 ## File: src/strategies/search-replace.ts
 ```typescript
 type DiffError = {
@@ -116,9 +163,13 @@ export const applyDiff = (
     };
   }
 
+  // Using .trim() is too aggressive and removes indentation.
+  // We want to remove the leading/trailing newlines that result from the split,
+  // but preserve the indentation of the code itself.
+  const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n\s*$/, "");
   let [, searchBlock, replaceBlock] = parts;
-  searchBlock = stripLineNumbers(searchBlock.trim());
-  replaceBlock = stripLineNumbers(replaceBlock.trim());
+  searchBlock = stripLineNumbers(cleanBlock(searchBlock));
+  replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
 
   if (searchBlock === "") {
     if (typeof options.start_line !== "number") {
@@ -347,14 +398,26 @@ const applyHunk = (
     return { success: false };
   }
 
-  const result = [...sourceLines.slice(0, bestMatchIndex)];
+  const result: string[] = [...sourceLines.slice(0, bestMatchIndex)];
+  let sourceIdx = bestMatchIndex;
+
   for (const hunkLine of hunk.lines) {
-    if (hunkLine.startsWith(" ") || hunkLine.startsWith("+")) {
-      result.push(hunkLine.substring(1));
+    const lineContent = hunkLine.substring(1);
+    if (hunkLine.startsWith("+")) {
+      result.push(lineContent);
+    } else if (hunkLine.startsWith(" ")) {
+      // For context lines, use the content from the source file to preserve it
+      // perfectly, especially after a fuzzy match.
+      if (sourceIdx < sourceLines.length) {
+        result.push(sourceLines[sourceIdx]);
+      }
+      sourceIdx++;
+    } else if (hunkLine.startsWith("-")) {
+      // For removed lines, just advance the source pointer.
+      sourceIdx++;
     }
   }
-  result.push(...sourceLines.slice(bestMatchIndex + pattern.length));
-
+  result.push(...sourceLines.slice(sourceIdx));
   return { success: true, newLines: result };
 };
 
@@ -637,6 +700,7 @@ apply_diff_tests:
         test.ts
         <<<<<<< SEARCH
             // Comment to remove
+
         =======
         >>>>>>> REPLACE
     expected:
@@ -661,8 +725,8 @@ apply_diff_tests:
         =======
         processData(config);
         >>>>>>> REPLACE
-      start_line: 4
-      end_line: 4
+      start_line: 5
+      end_line: 5
     expected:
       success: true
       content: |
@@ -683,8 +747,8 @@ tool_description_tests:
       cwd: "/mock/workspace"
     expected_to_contain:
       - "current working directory /mock/workspace"
-      - "--- a/path/to/original_file.ext"
-      - "+++ b/path/to/modified_file.ext"
+      - "--- a/src/component.tsx"
+      - "+++ b/src/component.tsx"
       - "@@ ... @@"
 
 # Tests for the `applyDiff` function
@@ -699,7 +763,7 @@ apply_diff_tests:
       diff_content: |
         --- a/file.txt
         +++ b/file.txt
-        @@ ... @@
+        @@ -1,3 +1,4 @@
          line1
         +new line
          line2
@@ -725,11 +789,11 @@ apply_diff_tests:
       diff_content: |
         --- a/file.txt
         +++ b/file.txt
-        @@ ... @@
+        @@ -1,2 +1,2 @@
          line1
         -line2
         +modified line2
-        @@ ... @@
+        @@ -4,2 +4,2 @@
          line4
         -line5
         +modified line5
@@ -756,7 +820,7 @@ apply_diff_tests:
       diff_content: |
         --- a/math.js
         +++ b/math.js
-        @@ ... @@
+        @@ -5,3 +5,3 @@
          function multiply(a, b) {
         -  return a + b;  // Bug here
         +  return a * b;
@@ -818,9 +882,9 @@ apply_diff_tests:
         import { readFile } from 'fs';
         import { Logger } from './utils/logger';
 
-        const logger = new Logger();
+        const logger = new Logger(); // This context line is correct
 
-        async function processFile(filePath:string) {
+        async function processFile(filePath: string) { // This context line is also correct
           try {
             const data = await readFile(filePath, 'utf8');
             logger.info(`File ${filePath} read successfully`);
@@ -841,7 +905,7 @@ apply_diff_tests:
       diff_content: |
         --- a/file.txt
         +++ b/file.txt
-        @@ ... @@
+        @@ -1,3 +1,3 @@
          line1
         -nonexistent line
         +new line
@@ -862,12 +926,12 @@ apply_diff_tests:
       diff_content: |
         --- a/file.txt
         +++ b/file.txt
-        @@ ... @@
+        @@ -1,3 +1,3 @@
          line1
          line2
         -line3
         +modified3
-        @@ ... @@
+        @@ -2,3 +2,2 @@
          line2
         -line3
         -line4
@@ -875,53 +939,6 @@ apply_diff_tests:
     expected:
       success: false
       reason: "Hunks overlap"
-```
-
-## File: package.json
-```json
-{
-  "name": "diff-apply",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "bun-types": "latest",
-    "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.9"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  }
-}
-```
-
-## File: relay.config.json
-```json
-{
-  "$schema": "https://relay-code.dev/schema.json",
-  "projectId": "diff-apply",
-  "core": {
-    "logLevel": "info",
-    "enableNotifications": false,
-    "watchConfig": true
-  },
-  "watcher": {
-    "clipboardPollInterval": 2000,
-    "preferredStrategy": "auto"
-  },
-  "patch": {
-    "approvalMode": "auto",
-    "approvalOnErrorCount": 0,
-    "linter": "",
-    "preCommand": "",
-    "postCommand": "",
-    "minFileChanges": 0
-  },
-  "git": {
-    "autoGitBranch": false,
-    "gitBranchPrefix": "relay/",
-    "gitBranchTemplate": "gitCommitMsg"
-  }
-}
 ```
 
 ## File: test/strategies/search-replace.test.ts

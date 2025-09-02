@@ -127,8 +127,8 @@ apply_diff_tests:
          async function processFile(filePath: string) { // This context line is also correct
            try {
              const data = await readFile(filePath, 'utf8');
-        -    logger.info('File read successfully'); // This change is correct
-        +    logger.info(`File ${filePath} read successfully`); // This change is correct
+        -    logger.info('File read successfully');
+        +    logger.info(`File ${filePath} read successfully`);
              return data;
            } catch (error) {
              logger.error('Failed to read file:', error);
@@ -141,9 +141,9 @@ apply_diff_tests:
         import { readFile } from 'fs';
         import { Logger } from './utils/logger';
 
-        const logger = new Logger(); // This context line is correct
+        const logger = new Logger();
 
-        async function processFile(filePath: string) { // This context line is also correct
+        async function processFile(filePath: string) {
           try {
             const data = await readFile(filePath, 'utf8');
             logger.info(`File ${filePath} read successfully`);

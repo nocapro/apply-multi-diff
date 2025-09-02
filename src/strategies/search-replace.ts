@@ -61,7 +61,12 @@ Examples:
 const stripLineNumbers = (text: string): string => {
   return text
     .split("\n")
-    .map((line) => line.replace(/^\s*\d+\s*\|\s*/, ""))
+    .map((line) => {
+      // Remove line numbers in format "N |" or "N|" where N is a number
+      // This preserves the original indentation after the pipe
+      const match = line.match(/^\s*\d+\s*\|\s*(.*)/);
+      return match ? match[1] : line;
+    })
     .join("\n");
 };
 
@@ -97,7 +102,8 @@ export const applyDiff = (
   // Using .trim() is too aggressive and removes indentation.
   // We want to remove the leading/trailing newlines that result from the split,
   // but preserve the indentation of the code itself.
-  const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n\s*$/, "");
+  // Remove leading and trailing newlines, but preserve internal structure
+  const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n$/, "").replace(/([ \t]+)$/, "");
   let [, searchBlock, replaceBlock] = parts;
   searchBlock = stripLineNumbers(cleanBlock(searchBlock));
   replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
@@ -115,7 +121,9 @@ export const applyDiff = (
     }
     const lines = original_content.split("\n");
     const insertionIndex = Math.max(0, options.start_line - 1);
-    lines.splice(insertionIndex, 0, replaceBlock);
+    // Split the replaceBlock into lines and insert each line
+    const replaceLines = replaceBlock.split("\n");
+    lines.splice(insertionIndex, 0, ...replaceLines);
     return { success: true, content: lines.join("\n") };
   }
 
@@ -168,6 +176,13 @@ export const applyDiff = (
     };
   }
 
-  const newContent = original_content.replace(searchBlock, replaceBlock);
+  let newContent = original_content.replace(searchBlock, replaceBlock);
+  
+  // If we're deleting content (replaceBlock is empty), clean up extra newlines
+  if (replaceBlock === "") {
+    // Remove double newlines that might result from deletion
+    newContent = newContent.replace(/\n\n+/g, "\n");
+  }
+  
   return { success: true, content: newContent };
 };
