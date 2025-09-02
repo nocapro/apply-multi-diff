@@ -292,3 +292,117 @@ apply_diff_tests:
     expected:
       success: false
       reason: "Hunks overlap"
+
+  - name: fuzzy-match-with-actual-drift
+    description: Should apply a hunk using fuzzy matching when context has drifted due to new comments
+    input:
+      original_content: |
+        // User added a comment here
+        class MyComponent extends React.Component {
+          render() {
+            const { value } = this.props;
+            // And another comment here
+            return <div>{value}</div>;
+          }
+        }
+      diff_content: |
+        --- a/component.jsx
+        +++ b/component.jsx
+        @@ -2,5 +2,5 @@
+         class MyComponent extends React.Component {
+           render() {
+             const { value } = this.props;
+        -    return <div>{value}</div>;
+        +    return <p>{value}</p>;
+           }
+         }
+    expected:
+      success: true
+      content: |
+        // User added a comment here
+        class MyComponent extends React.Component {
+          render() {
+            const { value } = this.props;
+            // And another comment here
+            return <p>{value}</p>;
+          }
+        }
+
+  - name: hunk-splitting-with-intermediate-user-edit
+    description: Should succeed by splitting a hunk when a user edit breaks its contiguity
+    input:
+      original_content: |
+        function setup() {
+            console.log("Initializing part 1...");
+            // init
+        }
+
+        // User added a new function here, breaking the hunk's contiguity
+        function helper() {
+            return true;
+        }
+
+        function tearDown() {
+            console.log("Tearing down part 3...");
+            // teardown
+        }
+      diff_content: |
+        --- a/file.js
+        +++ b/file.js
+        @@ -1,8 +1,8 @@
+         function setup() {
+        -    console.log("Initializing part 1...");
+        -    // init
+        +    console.log("Initializing part 1... DONE");
+        +    // initialize
+         }
+         
+         function tearDown() {
+        -    console.log("Tearing down part 3...");
+        -    // teardown
+        +    console.log("Tearing down part 3... DONE");
+        +    // deinitialize
+         }
+    expected:
+      success: true
+      content: |
+        function setup() {
+            console.log("Initializing part 1... DONE");
+            // initialize
+        }
+
+        // User added a new function here, breaking the hunk's contiguity
+        function helper() {
+            return true;
+        }
+
+        function tearDown() {
+            console.log("Tearing down part 3... DONE");
+            // deinitialize
+        }
+
+  - name: hunk-splitting-failure
+    description: Should fail if a sub-hunk fails to apply after splitting
+    input:
+      original_content: |
+        function partA() {
+            // some code A
+        }
+        function partB() {
+            // completely different code B
+        }
+      diff_content: |
+        --- a/file.js
+        +++ b/file.js
+        @@ -1,5 +1,5 @@
+         function partA() {
+        -    // some code A
+        +    // new code A
+         }
+         function partB() {
+        -    // some code B
+        +    // new code B
+         }
+    expected:
+      success: false
+      reason: "Could not apply modification"

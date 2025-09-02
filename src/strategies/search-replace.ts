@@ -194,6 +194,12 @@ export const applyDiff = (
           "Insertion requires a start_line. A SEARCH block was empty, but no start_line was provided."
         );
       }
+      // Special case for inserting into an empty file
+      if (currentContent === "") {
+        currentContent = block.replace;
+        continue;
+      }
+
       const lines = currentContent.split("\n");
       const insertionIndex = Math.max(0, options.start_line - 1);
       const replaceLines = block.replace.split("\n");

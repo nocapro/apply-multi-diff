@@ -75,25 +75,50 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const applyHunkAt = (sourceLines: readonly string[], hunk: Hunk, startIndex: number): string[] => {
-    const result: string[] = [...sourceLines.slice(0, startIndex)];
-    let sourceIdx = startIndex;
+const applyHunkAt = (
+  sourceLines: readonly string[],
+  hunk: Hunk,
+  startIndex: number
+): string[] => {
+  const result: string[] = [...sourceLines.slice(0, startIndex)];
+  let sourceIdx = startIndex;
 
-    for (const hunkLine of hunk.lines) {
-      const lineContent = hunkLine.substring(1);
-      if (hunkLine.startsWith("+")) {
-        result.push(lineContent);
-      } else if (hunkLine.startsWith(" ")) {
-        if (sourceIdx < sourceLines.length) {
-          result.push(sourceLines[sourceIdx]);
-        }
-        sourceIdx++;
-      } else if (hunkLine.startsWith("-")) {
-        sourceIdx++;
+  for (const hunkLine of hunk.lines) {
+    const lineContent = hunkLine.substring(1);
+    if (hunkLine.startsWith("+")) {
+      result.push(lineContent);
+      continue;
+    }
+
+    // For context or deletion, find the line in the source to handle drift.
+    let foundIdx = -1;
+    const searchEnd = Math.min(sourceIdx + 10, sourceLines.length);
+    for (let i = sourceIdx; i < searchEnd; i++) {
+      if (sourceLines[i] === lineContent) {
+        foundIdx = i;
+        break;
       }
     }
-    result.push(...sourceLines.slice(sourceIdx));
-    return result;
+
+    if (foundIdx !== -1) {
+      // Found the line. Preserve drift (lines between sourceIdx and foundIdx).
+      for (let i = sourceIdx; i < foundIdx; i++) {
+        result.push(sourceLines[i]);
+      }
+      if (hunkLine.startsWith(" ")) {
+        result.push(sourceLines[foundIdx]);
+      }
+      sourceIdx = foundIdx + 1;
+    } else {
+      // Not found nearby (fuzzy match case). Assume current line corresponds.
+      if (hunkLine.startsWith(" ")) {
+        if (sourceIdx < sourceLines.length) result.push(sourceLines[sourceIdx]);
+      }
+      sourceIdx++;
+    }
+  }
+  result.push(...sourceLines.slice(sourceIdx));
+  return result;
 };
 
 const findAndApplyHunk = (
@@ -128,7 +153,7 @@ const findAndApplyHunk = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.35); // 35% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");

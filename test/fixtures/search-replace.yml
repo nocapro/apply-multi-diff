@@ -319,3 +319,88 @@ apply_diff_tests:
       content: |
         const a = "apricot";
         const b = "blueberry";
+
+  - name: fuzzy-match-rejection-on-string-literal-change
+    description: Should reject a fuzzy match that changes the semantic meaning of a string literal
+    input:
+      original_content: |
+        logger.error("Failed to connect to database");
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        logger.error("Failed to load configuration");
+        =======
+        Sentry.captureMessage("Failed to load configuration");
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+
+  - name: replace-with-complex-relative-indentation
+    description: Should correctly re-indent a replacement block with multiple indentation levels
+    input:
+      original_content: |
+        function outer() {
+            if (condition) {
+                process();
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        process();
+        =======
+        if (anotherCondition) {
+            process();
+        } else {
+            fallback();
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function outer() {
+            if (condition) {
+                if (anotherCondition) {
+                    process();
+                } else {
+                    fallback();
+                }
+            }
+        }
+
+  - name: empty-file-insertion
+    description: Should insert content into an empty file without extra newlines
+    input:
+      original_content: ""
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        Hello, World!
+        >>>>>>> REPLACE
+      start_line: 1
+    expected:
+      success: true
+      content: "Hello, World!"
+
+  - name: first-of-ambiguous-match-is-replaced
+    description: Should replace the first occurrence of an ambiguous match when no line numbers are given
+    input:
+      original_content: |
+        config.set("value", 1);
+        // ... lots of code
+        config.set("value", 1);
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        config.set("value", 1);
+        =======
+        config.set("value", 2);
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        config.set("value", 2);
+        // ... lots of code
+        config.set("value", 1);
