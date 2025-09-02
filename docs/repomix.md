@@ -462,25 +462,50 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const applyHunkAt = (sourceLines: readonly string[], hunk: Hunk, startIndex: number): string[] => {
-    const result: string[] = [...sourceLines.slice(0, startIndex)];
-    let sourceIdx = startIndex;
+const applyHunkAt = (
+  sourceLines: readonly string[],
+  hunk: Hunk,
+  startIndex: number
+): string[] => {
+  const result: string[] = [...sourceLines.slice(0, startIndex)];
+  let sourceIdx = startIndex;
 
-    for (const hunkLine of hunk.lines) {
-      const lineContent = hunkLine.substring(1);
-      if (hunkLine.startsWith("+")) {
-        result.push(lineContent);
-      } else if (hunkLine.startsWith(" ")) {
-        if (sourceIdx < sourceLines.length) {
-          result.push(sourceLines[sourceIdx]);
-        }
-        sourceIdx++;
-      } else if (hunkLine.startsWith("-")) {
-        sourceIdx++;
+  for (const hunkLine of hunk.lines) {
+    const lineContent = hunkLine.substring(1);
+    if (hunkLine.startsWith("+")) {
+      result.push(lineContent);
+      continue;
+    }
+
+    // For context or deletion, find the line in the source to handle drift.
+    let foundIdx = -1;
+    const searchEnd = Math.min(sourceIdx + 10, sourceLines.length);
+    for (let i = sourceIdx; i < searchEnd; i++) {
+      if (sourceLines[i] === lineContent) {
+        foundIdx = i;
+        break;
       }
     }
-    result.push(...sourceLines.slice(sourceIdx));
-    return result;
+
+    if (foundIdx !== -1) {
+      // Found the line. Preserve drift (lines between sourceIdx and foundIdx).
+      for (let i = sourceIdx; i < foundIdx; i++) {
+        result.push(sourceLines[i]);
+      }
+      if (hunkLine.startsWith(" ")) {
+        result.push(sourceLines[foundIdx]);
+      }
+      sourceIdx = foundIdx + 1;
+    } else {
+      // Not found nearby (fuzzy match case). Assume current line corresponds.
+      if (hunkLine.startsWith(" ")) {
+        if (sourceIdx < sourceLines.length) result.push(sourceLines[sourceIdx]);
+      }
+      sourceIdx++;
+    }
+  }
+  result.push(...sourceLines.slice(sourceIdx));
+  return result;
 };
 
 const findAndApplyHunk = (
@@ -493,7 +518,9 @@ const findAndApplyHunk = (
 
   if (pattern.length === 0) {
     // Pure insertion. Trust the line number.
-    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    // A pure insertion hunk's originalStartLine refers to the line *after* which
+    // the content should be inserted. Line `n` is at index `n-1`. After line `n` is index `n`.
+    const insertionPoint = hunk.originalStartLine;
     const result = [...sourceLines];
     const additions = hunk.lines
       .filter((l) => l.startsWith("+"))
@@ -515,7 +542,7 @@ const findAndApplyHunk = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.35); // 35% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
@@ -1038,6 +1065,207 @@ apply_diff_tests:
         config.set("value", 2);
         // ... lots of code
         config.set("value", 1);
+
+  - name: replace-at-start-of-file
+    description: Should correctly replace content at the very beginning of the file
+    input:
+      original_content: |
+        // Header
+        function start() {}
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        // Header
+        =======
+        // New Header
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        // New Header
+        function start() {}
+
+  - name: replace-at-end-of-file
+    description: Should correctly replace content at the very end of the file
+    input:
+      original_content: |
+        function start() {}
+        // Footer
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        // Footer
+        =======
+        // New Footer
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function start() {}
+        // New Footer
+
+  - name: sequential-overlapping-replace
+    description: Should handle sequential replacements where the second depends on the first
+    input:
+      original_content: |
+        function one() {
+            return 1;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function one() {
+            return 1;
+        }
+        =======
+        function two() {
+            return 2;
+        }
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        function two() {
+        =======
+        function two() { // Renamed
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function two() { // Renamed
+            return 2;
+        }
+
+  - name: insertion-with-inferred-indentation
+    description: Should insert code and correctly apply surrounding indentation
+    input:
+      original_content: |
+        function outer() {
+            if (true) {
+                // marker
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("inserted");
+        >>>>>>> REPLACE
+      start_line: 3
+    expected:
+      success: true
+      content: |
+        function outer() {
+            if (true) {
+                console.log("inserted");
+                // marker
+            }
+        }
+
+  - name: fuzzy-delete
+    description: Should delete a block of code even with minor differences
+    input:
+      original_content: |
+        function hello() {
+            // This is a very important comment
+            console.log("hello");
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // This is an important comment
+            console.log("hello");
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+        }
+
+  - name: replace-block-with-trailing-newline
+    description: Should correctly handle a replace block that ends with a newline
+    input:
+      original_content: |
+        const x = 1;
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const x = 1;
+        =======
+        const y = 2;
+
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        const y = 2;
+
+  - name: remove-extra-blank-lines
+    description: Should be able to search for and remove only whitespace
+    input:
+      original_content: |
+        line 1
+
+
+        line 2
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        line 1
+
+        line 2
+
+  - name: replace-with-regex-special-chars
+    description: Should correctly replace content that contains special regex characters
+    input:
+      original_content: "const x = arr[0] + (y || 0);"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        arr[0] + (y || 0)
+        =======
+        arr[0] * (y || 1)
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "const x = arr[0] * (y || 1);"
+
+  - name: unicode-characters-replace
+    description: Should correctly handle files with unicode characters in search and replace
+    input:
+      original_content: "const greeting = '你好世界';"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        '你好世界'
+        =======
+        'こんにちは世界'
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "const greeting = 'こんにちは世界';"
+
+  - name: fuzzy-match-accept-minor-string-literal-change
+    description: Should accept a fuzzy match with a minor, non-semantic change in a string literal
+    input:
+      original_content: |
+        logger.error("Failed to connect to database!"); // User added exclamation
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        logger.error("Failed to connect to database");
+        =======
+        Sentry.captureMessage("Failed to connect to database!");
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        Sentry.captureMessage("Failed to connect to database!"); // User added exclamation
 ```
 
 ## File: test/fixtures/standard-diff.yml
@@ -1310,6 +1538,147 @@ apply_diff_tests:
     expected:
       success: false
       reason: "Could not apply modification"
+
+  - name: pure-insertion-at-start
+    description: Should correctly insert content at the beginning of a file
+    input:
+      original_content: |
+        line 1
+        line 2
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -0,0 +1,2 @@
+        +new line 1
+        +new line 2
+    expected:
+      success: true
+      content: |
+        new line 1
+        new line 2
+        line 1
+        line 2
+
+  - name: unicode-characters
+    description: Should correctly handle files with unicode characters
+    input:
+      original_content: "你好世界"
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1 +1 @@
+        -你好世界
+        +こんにちは世界
+    expected:
+      success: true
+      content: "こんにちは世界"
+
+  - name: pure-insertion-after-line
+    description: Should correctly apply a hunk that only contains additions after a specific line
+    input:
+      original_content: |
+        line 1
+        line 3
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1,0 +2,1 @@
+        +line 2
+    expected:
+      success: true
+      content: |
+        line 1
+        line 2
+        line 3
+
+  - name: pure-deletion-hunk
+    description: Should correctly apply a hunk that only contains deletions
+    input:
+      original_content: |
+        line 1
+        line 2 to delete
+        line 3
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1,3 +1,2 @@
+         line 1
+        -line 2 to delete
+         line 3
+    expected:
+      success: true
+      content: |
+        line 1
+        line 3
+
+  - name: apply-to-empty-file
+    description: Should correctly apply a diff to an empty file (file creation)
+    input:
+      original_content: ""
+      diff_content: |
+        --- /dev/null
+        +++ b/file.txt
+        @@ -0,0 +1,3 @@
+        +Hello
+        +World
+        +!
+    expected:
+      success: true
+      content: |
+        Hello
+        World
+        !
+
+  - name: delete-all-content
+    description: Should correctly empty a file when the diff removes all lines
+    input:
+      original_content: |
+        line 1
+        line 2
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1,2 +0,0 @@
+        -line 1
+        -line 2
+    expected:
+      success: true
+      content: ""
+
+  - name: modify-start-of-file
+    description: Should correctly apply a hunk that modifies the beginning of the file
+    input:
+      original_content: |
+        first line
+        second line
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1,2 +1,2 @@
+        -first line
+        +modified first line
+         second line
+    expected:
+      success: true
+      content: |
+        modified first line
+        second line
+
+  - name: add-to-file-without-trailing-newline
+    description: Should correctly add content to a file that lacks a trailing newline
+    input:
+      original_content: "line 1"
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1 +1,2 @@
+         line 1
+        +line 2
+    expected:
+      success: true
+      content: |
+        line 1
+        line 2
 
   - name: fail-on-overlapping-hunks
     description: Should fail to apply diffs that contain overlapping hunks
@@ -1658,8 +2027,28 @@ export const applyDiff = (
 
       const lines = currentContent.split("\n");
       const insertionIndex = Math.max(0, options.start_line - 1);
-      const replaceLines = block.replace.split("\n");
-      lines.splice(insertionIndex, 0, ...replaceLines);
+
+      // Infer indentation from the insertion line or surrounding lines
+      let indent = "";
+      if (insertionIndex < lines.length) {
+        indent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
+      } else if (lines.length > 0) {
+        // If inserting at the very end, use indent of last line
+        indent = lines[lines.length - 1].match(/^[ \t]*/)?.[0] || "";
+      }
+
+      const replaceLines = block.replace.split('\n');
+      const replaceBaseIndent = getCommonIndent(block.replace);
+      
+      const reindentedReplaceLines = replaceLines.map(line => {
+          if (line.trim() === "") return line;
+          const dedentedLine = line.startsWith(replaceBaseIndent)
+            ? line.substring(replaceBaseIndent.length)
+            : line;
+          return indent + dedentedLine;
+      });
+
+      lines.splice(insertionIndex, 0, ...reindentedReplaceLines);
       currentContent = lines.join("\n");
       continue;
     }

@@ -404,3 +404,204 @@ apply_diff_tests:
         config.set("value", 2);
         // ... lots of code
         config.set("value", 1);
+
+  - name: replace-at-start-of-file
+    description: Should correctly replace content at the very beginning of the file
+    input:
+      original_content: |
+        // Header
+        function start() {}
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        // Header
+        =======
+        // New Header
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        // New Header
+        function start() {}
+
+  - name: replace-at-end-of-file
+    description: Should correctly replace content at the very end of the file
+    input:
+      original_content: |
+        function start() {}
+        // Footer
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        // Footer
+        =======
+        // New Footer
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function start() {}
+        // New Footer
+
+  - name: sequential-overlapping-replace
+    description: Should handle sequential replacements where the second depends on the first
+    input:
+      original_content: |
+        function one() {
+            return 1;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function one() {
+            return 1;
+        }
+        =======
+        function two() {
+            return 2;
+        }
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        function two() {
+        =======
+        function two() { // Renamed
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function two() { // Renamed
+            return 2;
+        }
+
+  - name: insertion-with-inferred-indentation
+    description: Should insert code and correctly apply surrounding indentation
+    input:
+      original_content: |
+        function outer() {
+            if (true) {
+                // marker
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("inserted");
+        >>>>>>> REPLACE
+      start_line: 3
+    expected:
+      success: true
+      content: |
+        function outer() {
+            if (true) {
+                console.log("inserted");
+                // marker
+            }
+        }
+
+  - name: fuzzy-delete
+    description: Should delete a block of code even with minor differences
+    input:
+      original_content: |
+        function hello() {
+            // This is a very important comment
+            console.log("hello");
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // This is an important comment
+            console.log("hello");
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+        }
+
+  - name: replace-block-with-trailing-newline
+    description: Should correctly handle a replace block that ends with a newline
+    input:
+      original_content: |
+        const x = 1;
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const x = 1;
+        =======
+        const y = 2;
+
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        const y = 2;
+
+  - name: remove-extra-blank-lines
+    description: Should be able to search for and remove only whitespace
+    input:
+      original_content: |
+        line 1
+
+
+        line 2
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        line 1
+
+        line 2
+
+  - name: replace-with-regex-special-chars
+    description: Should correctly replace content that contains special regex characters
+    input:
+      original_content: "const x = arr[0] + (y || 0);"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        arr[0] + (y || 0)
+        =======
+        arr[0] * (y || 1)
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "const x = arr[0] * (y || 1);"
+
+  - name: unicode-characters-replace
+    description: Should correctly handle files with unicode characters in search and replace
+    input:
+      original_content: "const greeting = '你好世界';"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        '你好世界'
+        =======
+        'こんにちは世界'
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "const greeting = 'こんにちは世界';"
+
+  - name: fuzzy-match-accept-minor-string-literal-change
+    description: Should accept a fuzzy match with a minor, non-semantic change in a string literal
+    input:
+      original_content: |
+        logger.error("Failed to connect to database!"); // User added exclamation
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        logger.error("Failed to connect to database");
+        =======
+        Sentry.captureMessage("Failed to connect to database!");
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        Sentry.captureMessage("Failed to connect to database!"); // User added exclamation

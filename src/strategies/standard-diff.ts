@@ -131,7 +131,9 @@ const findAndApplyHunk = (
 
   if (pattern.length === 0) {
     // Pure insertion. Trust the line number.
-    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    // A pure insertion hunk's originalStartLine refers to the line *after* which
+    // the content should be inserted. Line `n` is at index `n-1`. After line `n` is index `n`.
+    const insertionPoint = hunk.originalStartLine;
     const result = [...sourceLines];
     const additions = hunk.lines
       .filter((l) => l.startsWith("+"))
@@ -153,7 +155,7 @@ const findAndApplyHunk = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  const maxDistanceThreshold = Math.floor(patternText.length * 0.35); // 35% difference tolerance
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.30); // 30% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");

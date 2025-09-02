@@ -119,8 +119,8 @@ const findBestMatch = (
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
   const maxDistanceThreshold = Math.max(
-    5, // a minimum for short blocks
-    Math.floor(dedentedSearchText.length * 0.3) // 30% tolerance for fuzzy matching
+    10, // a minimum for short blocks or substring-like matches
+    Math.floor(dedentedSearchText.length * 0.5) // 50% tolerance for fuzzy matching
   );
 
   const searchStart = startLine - 1;
@@ -159,9 +159,8 @@ const findBestMatch = (
       if (searchStringMatch && sliceStringMatch) {
         const searchString = searchStringMatch[1];
         const sliceString = sliceStringMatch[1];
-        
-        // If the strings are completely different (not just comment changes), reject
-        if (searchString !== sliceString && !searchString.includes(sliceString) && !sliceString.includes(searchString)) {
+
+        if (levenshtein(searchString, sliceString) > searchString.length * 0.5) {
           return null;
         }
       }
@@ -202,8 +201,28 @@ export const applyDiff = (
 
       const lines = currentContent.split("\n");
       const insertionIndex = Math.max(0, options.start_line - 1);
-      const replaceLines = block.replace.split("\n");
-      lines.splice(insertionIndex, 0, ...replaceLines);
+
+      // Infer indentation from the insertion line or surrounding lines
+      let indent = "";
+      if (insertionIndex < lines.length) {
+        indent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
+      } else if (lines.length > 0) {
+        // If inserting at the very end, use indent of last line
+        indent = lines[lines.length - 1].match(/^[ \t]*/)?.[0] || "";
+      }
+
+      const replaceLines = block.replace.split('\n');
+      const replaceBaseIndent = getCommonIndent(block.replace);
+      
+      const reindentedReplaceLines = replaceLines.map(line => {
+          if (line.trim() === "") return line;
+          const dedentedLine = line.startsWith(replaceBaseIndent)
+            ? line.substring(replaceBaseIndent.length)
+            : line;
+          return indent + dedentedLine;
+      });
+
+      lines.splice(insertionIndex, 0, ...reindentedReplaceLines);
       currentContent = lines.join("\n");
       continue;
     }
