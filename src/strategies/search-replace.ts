@@ -158,7 +158,7 @@ export const applyDiff = (
       }
   }
 
-  const replaceLines = replaceBlock.split('\n');
+  const replaceLines = replaceBlock === "" ? [] : replaceBlock.split('\n');
   let replaceBaseIndent = "";
    for (const line of replaceLines) {
     if (line.trim() !== "") {
