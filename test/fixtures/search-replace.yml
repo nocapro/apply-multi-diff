@@ -72,6 +72,31 @@ apply_diff_tests:
             }
         }
 
+  - name: fuzzy-match-on-minor-difference
+    description: Should find and replace content that is slightly different from the search block
+    input:
+      original_content: |
+        function calculate() {
+          // A comment
+          const result = 1 + 1;
+          return result;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+          // An old comment
+          const result = 1 + 1;
+        =======
+          const result = 2 * 2; // updated logic
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function calculate() {
+          const result = 2 * 2; // updated logic
+          return result;
+        }
+
   - name: fail-on-no-match
     description: Should fail gracefully if the search content does not match
     input:
@@ -270,3 +295,27 @@ apply_diff_tests:
 
         // Instance 2
         processData(config);
+
+  - name: multiple-blocks-in-one-call
+    description: Should process multiple search/replace blocks in a single operation
+    input:
+      original_content: |
+        const a = "apple";
+        const b = "banana";
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const a = "apple";
+        =======
+        const a = "apricot";
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        const b = "banana";
+        =======
+        const b = "blueberry";
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        const a = "apricot";
+        const b = "blueberry";

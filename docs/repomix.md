@@ -24,6 +24,31 @@ tsconfig.json
 
 # Files
 
+## File: src/utils/error.ts
+```typescript
+import type { ApplyDiffResult } from "../types";
+
+export const createErrorResult = (
+  code: string,
+  message: string
+): Extract<ApplyDiffResult, { success: false }> => {
+  return {
+    success: false,
+    error: { code, message },
+  };
+};
+```
+
+## File: src/utils/logger.ts
+```typescript
+// Placeholder for a more robust logger
+export const logger = {
+  info: (...args: unknown[]) => console.log(...args),
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args),
+};
+```
+
 ## File: src/utils/string.ts
 ```typescript
 export const levenshtein = (s1: string, s2: string): number => {
@@ -50,45 +75,21 @@ export const levenshtein = (s1: string, s2: string): number => {
 export const getIndent = (line: string): string =>
   line.match(/^[ \t]*/)?.[0] || "";
 
+/**
+ * Finds the shortest leading whitespace sequence among all non-empty lines,
+ * which represents the common base indentation for a block of text.
+ */
 export const getCommonIndent = (text: string): string => {
   const lines = text.split("\n").filter((line) => line.trim() !== "");
-  if (lines.length === 0) {
-    return "";
-  }
+  if (!lines.length) return "";
 
-  let shortestIndent = getIndent(lines[0]);
-  for (let i = 1; i < lines.length; i++) {
-    const indent = getIndent(lines[i]);
-    if (indent.length < shortestIndent.length) {
-      shortestIndent = indent;
+  return lines.reduce((shortest, line) => {
+    const currentIndent = getIndent(line);
+    if (currentIndent.length < shortest.length) {
+      return currentIndent;
     }
-  }
-  return shortestIndent;
-};
-```
-
-## File: src/utils/error.ts
-```typescript
-import type { ApplyDiffResult } from "../types";
-
-export const createErrorResult = (
-  code: string,
-  message: string
-): Extract<ApplyDiffResult, { success: false }> => {
-  return {
-    success: false,
-    error: { code, message },
-  };
-};
-```
-
-## File: src/utils/logger.ts
-```typescript
-// Placeholder for a more robust logger
-export const logger = {
-  info: (...args: unknown[]) => console.log(...args),
-  warn: (...args: unknown[]) => console.warn(...args),
-  error: (...args: unknown[]) => console.error(...args),
+    return shortest;
+  }, getIndent(lines[0]));
 };
 ```
 
@@ -108,6 +109,18 @@ export const ERROR_CODES = {
 } as const;
 ```
 
+## File: src/types.ts
+```typescript
+export type DiffError = {
+  code: string;
+  message: string;
+};
+
+export type ApplyDiffResult =
+  | { success: true; content: string }
+  | { success: false; error: DiffError };
+```
+
 ## File: src/index.ts
 ```typescript
 export {
@@ -124,18 +137,6 @@ export * from "./constants";
 export * from "./utils/error";
 export * from "./utils/logger";
 export * from "./utils/string";
-```
-
-## File: src/types.ts
-```typescript
-export type DiffError = {
-  code: string;
-  message: string;
-};
-
-export type ApplyDiffResult =
-  | { success: true; content: string }
-  | { success: false; error: DiffError };
 ```
 
 ## File: test/strategies/search-replace.test.ts
@@ -381,13 +382,15 @@ import { levenshtein } from "../utils/string";
 type Hunk = {
   originalStartLine: number;
   originalLineCount: number;
+  newStartLine: number;
+  newLineCount: number;
   lines: string[];
 };
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Standard Diff Format
 
-Applies changes to a single file using the standard unified diff format (the same format used by \`git diff\`). This tool is highly resilient and can apply partial changes even if some parts of the diff do not match perfectly, by intelligently splitting changes into smaller parts.
+Applies changes to a single file using the standard unified diff format. This tool is highly resilient and uses multiple fallback strategies (fuzzy matching, hunk splitting) to apply changes even if the source file has been modified.
 
 Parameters:
   :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
@@ -421,7 +424,7 @@ Example:
 const parseHunks = (diffContent: string): Hunk[] | null => {
   const lines = diffContent.split("\n");
   const hunks: Hunk[] = [];
-  let currentHunk: Hunk | null = null;
+  let currentHunk: Omit<Hunk, 'lines'> & { lines: string[] } | null = null;
   const hunkHeaderRegex = /^@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@/;
 
   for (const line of lines) {
@@ -433,6 +436,8 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
       currentHunk = {
         originalStartLine: parseInt(match[1], 10),
         originalLineCount: match[3] ? parseInt(match[3], 10) : 1,
+        newStartLine: parseInt(match[4], 10),
+        newLineCount: match[6] ? parseInt(match[6], 10) : 1,
         lines: [],
       };
     } else if (
@@ -446,26 +451,7 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const applyHunk = (
-  sourceLines: readonly string[],
-  hunk: Hunk
-): { success: true; newLines: string[] } | { success: false } => {
-  const pattern = hunk.lines
-    .filter((l) => l.startsWith(" ") || l.startsWith("-"))
-    .map((l) => l.substring(1));
-
-  if (pattern.length === 0) {
-    // This is a pure insertion, rely on the hunk's line number
-    const result = [...sourceLines];
-    const additions = hunk.lines
-      .filter((l) => l.startsWith("+"))
-      .map((l) => l.substring(1));
-    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
-    result.splice(insertionPoint, 0, ...additions);
-    return { success: true, newLines: result };
-  }
-
-  const performApply = (startIndex: number): string[] => {
+const applyHunkAt = (sourceLines: readonly string[], hunk: Hunk, startIndex: number): string[] => {
     const result: string[] = [...sourceLines.slice(0, startIndex)];
     let sourceIdx = startIndex;
 
@@ -474,87 +460,92 @@ const applyHunk = (
       if (hunkLine.startsWith("+")) {
         result.push(lineContent);
       } else if (hunkLine.startsWith(" ")) {
-        // For context lines, use the content from the source file to preserve it
-        // perfectly, especially after a fuzzy match.
         if (sourceIdx < sourceLines.length) {
           result.push(sourceLines[sourceIdx]);
         }
         sourceIdx++;
       } else if (hunkLine.startsWith("-")) {
-        // For removed lines, just advance the source pointer.
         sourceIdx++;
       }
     }
     result.push(...sourceLines.slice(sourceIdx));
     return result;
-  };
+};
 
-  // --- Multi-stage search for best match ---
+const findAndApplyHunk = (
+  sourceLines: readonly string[],
+  hunk: Hunk
+): { success: true; newLines: string[] } | { success: false } => {
+  const pattern = hunk.lines
+    .filter((l) => l.startsWith(" ") || l.startsWith("-"))
+    .map((l) => l.substring(1));
 
-  // Stage 1: Exact match at the expected line number (fast path)
+  if (pattern.length === 0) {
+    // Pure insertion. Trust the line number.
+    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    const result = [...sourceLines];
+    const additions = hunk.lines
+      .filter((l) => l.startsWith("+"))
+      .map((l) => l.substring(1));
+    result.splice(insertionPoint, 0, ...additions);
+    return { success: true, newLines: result };
+  }
+
+  // --- STAGE 1: Exact Match (Fast Path) ---
   const expectedStartIndex = hunk.originalStartLine - 1;
-  if (
-    expectedStartIndex >= 0 &&
-    expectedStartIndex + pattern.length <= sourceLines.length
-  ) {
-    const slice = sourceLines.slice(
-      expectedStartIndex,
-      expectedStartIndex + pattern.length
-    );
+  if (expectedStartIndex >= 0 && expectedStartIndex + pattern.length <= sourceLines.length) {
+    const slice = sourceLines.slice(expectedStartIndex, expectedStartIndex + pattern.length);
     if (slice.join("\n") === pattern.join("\n")) {
-      return { success: true, newLines: performApply(expectedStartIndex) };
+      return { success: true, newLines: applyHunkAt(sourceLines, hunk, expectedStartIndex) };
     }
   }
 
-  // Stage 2: Fuzzy match using Levenshtein distance
+  // --- STAGE 2: Fuzzy Match (Global Search) ---
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
   const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
-    const slice = sourceLines.slice(i, i + pattern.length);
-    const sliceText = slice.join("\n");
-
-    if (sliceText === patternText) {
-      minDistance = 0;
-      bestMatchIndex = i;
-      break; // Perfect match found, no need to search further.
-    }
-
+    const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
     const distance = levenshtein(patternText, sliceText);
-
     if (distance < minDistance) {
       minDistance = distance;
       bestMatchIndex = i;
     }
+    if (distance === 0) break; // Perfect match found
   }
 
-  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
-    return { success: false };
+  if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
+    return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
   }
 
-  return { success: true, newLines: performApply(bestMatchIndex) };
+  return { success: false };
 };
+
 
 const splitHunk = (hunk: Hunk): Hunk[] => {
   const subHunks: Hunk[] = [];
-  const context = 2;
+  const context = 2; 
   let i = 0;
   while (i < hunk.lines.length) {
+    // Skip leading context
     while (i < hunk.lines.length && hunk.lines[i].startsWith(" ")) i++;
     if (i === hunk.lines.length) break;
 
-    const changeStart = i;
+    const changeBlockStart = i;
+    // Find end of this change block
     while (i < hunk.lines.length && !hunk.lines[i].startsWith(" ")) i++;
-    const changeEnd = i;
+    const changeBlockEnd = i;
 
-    const start = Math.max(0, changeStart - context);
-    const end = Math.min(hunk.lines.length, changeEnd + context);
+    const subHunkStart = Math.max(0, changeBlockStart - context);
+    const subHunkEnd = Math.min(hunk.lines.length, changeBlockEnd + context);
+    
+    const subHunkLines = hunk.lines.slice(subHunkStart, subHunkEnd);
 
     subHunks.push({
-      ...hunk,
-      lines: hunk.lines.slice(start, end),
+      ...hunk, // Carry over metadata, although it's less accurate for sub-hunks
+      lines: subHunkLines,
     });
   }
   return subHunks;
@@ -568,60 +559,60 @@ export const applyDiff = (
   if (!hunks) {
     return createErrorResult(
       ERROR_CODES.INVALID_DIFF_FORMAT,
-      "Invalid diff format. Could not parse any hunks from the diff content."
+      "Invalid diff format. Could not parse any hunks."
     );
   }
-
+  
+  // Basic validation for overlapping hunks
   for (let i = 0; i < hunks.length; i++) {
     for (let j = i + 1; j < hunks.length; j++) {
       const h1 = hunks[i];
-      const h1End = h1.originalStartLine + h1.originalLineCount - 1;
+      const h1End = h1.originalStartLine + h1.originalLineCount;
       const h2 = hunks[j];
-      const h2End = h2.originalStartLine + h2.originalLineCount - 1;
-      if (
-        Math.max(h1.originalStartLine, h2.originalStartLine) <=
-        Math.min(h1End, h2End)
-      ) {
-        return createErrorResult(
-          ERROR_CODES.OVERLAPPING_HUNKS,
-          "Hunks overlap. The provided diff contains multiple change hunks that target the same or overlapping line ranges, creating an ambiguity that cannot be resolved."
-        );
+      if (Math.max(h1.originalStartLine, h2.originalStartLine) < Math.min(h1End, h2.originalStartLine + h2.originalLineCount)) {
+        return createErrorResult(ERROR_CODES.OVERLAPPING_HUNKS, "Hunks overlap, which is not supported.");
       }
     }
   }
 
   let lines: readonly string[] = originalContent.split("\n");
+  let appliedSuccessfully = true;
 
   for (const hunk of hunks) {
-    const result = applyHunk(lines, hunk);
+    const result = findAndApplyHunk(lines, hunk);
     if (result.success) {
       lines = result.newLines;
     } else {
+      // --- FALLBACK: Hunk Splitting ---
       const subHunks = splitHunk(hunk);
-      if (subHunks.length <= 1) {
-        return createErrorResult(
-          ERROR_CODES.CONTEXT_MISMATCH,
-          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
-        );
+      if (subHunks.length <= 1) { // No benefit in splitting a single change block
+        appliedSuccessfully = false;
+        break;
       }
 
-      let allApplied = true;
+      let allSubHunksApplied = true;
       for (const subHunk of subHunks) {
-        const subResult = applyHunk(lines, subHunk);
+        const subResult = findAndApplyHunk(lines, subHunk);
         if (subResult.success) {
           lines = subResult.newLines;
         } else {
-          allApplied = false;
+          allSubHunksApplied = false;
           break;
         }
       }
-      if (!allApplied) {
-        return createErrorResult(
-          ERROR_CODES.CONTEXT_MISMATCH,
-          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
-        );
+
+      if (!allSubHunksApplied) {
+        appliedSuccessfully = false;
+        break;
       }
     }
+  }
+
+  if (!appliedSuccessfully) {
+    return createErrorResult(
+      ERROR_CODES.CONTEXT_MISMATCH,
+      "Could not apply modification. A hunk could not be matched, even with fuzzy search and hunk splitting fallbacks."
+    );
   }
 
   return { success: true, content: lines.join("\n") };
@@ -775,6 +766,52 @@ apply_diff_tests:
 
         line3-modified
   
+  - name: fuzzy-match-with-drifted-context
+    description: Should apply a hunk correctly even if the context has minor changes
+    input:
+      original_content: |
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        contract SimpleStore {
+            uint256 private _value; // The value stored
+
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
+      diff_content: |
+        --- a/SimpleStore.sol
+        +++ b/SimpleStore.sol
+        @@ -4,6 +4,10 @@
+         contract SimpleStore {
+             uint256 private _value;
+ 
++            function getValue() public view returns (uint256) {
++                return _value;
++            }
++
+             function setValue(uint256 value) public {
+                 _value = value;
+             }
+    expected:
+      success: true
+      content: |
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        contract SimpleStore {
+            uint256 private _value; // The value stored
+
+            function getValue() public view returns (uint256) {
+                return _value;
+            }
+
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
+
   - name: fallback-hunk-splitting-on-failure
     description: Should split a failing hunk into smaller parts and apply them individually
     input:
@@ -954,6 +991,31 @@ apply_diff_tests:
                 console.log("Getting value");
                 return this.value;
             }
+        }
+
+  - name: fuzzy-match-on-minor-difference
+    description: Should find and replace content that is slightly different from the search block
+    input:
+      original_content: |
+        function calculate() {
+          // A comment
+          const result = 1 + 1;
+          return result;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+          // An old comment
+          const result = 1 + 1;
+        =======
+          const result = 2 * 2; // updated logic
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function calculate() {
+          const result = 2 * 2; // updated logic
+          return result;
         }
 
   - name: fail-on-no-match
@@ -1154,6 +1216,30 @@ apply_diff_tests:
 
         // Instance 2
         processData(config);
+
+  - name: multiple-blocks-in-one-call
+    description: Should process multiple search/replace blocks in a single operation
+    input:
+      original_content: |
+        const a = "apple";
+        const b = "banana";
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const a = "apple";
+        =======
+        const a = "apricot";
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+        const b = "banana";
+        =======
+        const b = "blueberry";
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        const a = "apricot";
+        const b = "blueberry";
 ```
 
 ## File: src/strategies/search-replace.ts
@@ -1161,26 +1247,27 @@ apply_diff_tests:
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
+import { getCommonIndent, getIndent, levenshtein } from "../utils/string";
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
 
-Applies a targeted code change to a single file using a search-and-replace format. This is ideal for precise modifications, insertions, or deletions of specific code blocks.
+Applies a targeted code change to a single file using a search-and-replace format. This is ideal for precise modifications, insertions, or deletions of specific code blocks. It supports fuzzy matching and multiple replacements in a single call.
 
 Parameters:
   :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
-  :diff_content: (required) A string containing the search and replace blocks.
+  :diff_content: (required) A string containing one or more search and replace blocks.
   :start_line: (optional) The line number in the original file where the search block is expected to start. Use this to resolve ambiguity when the same code appears multiple times. Required for insertions.
   :end_line: (optional) The line number in the original file where the search block is expected to end.
 
 Format Requirements:
-The \`diff_content\` must follow this structure:
+The \`diff_content\` must follow this structure. You can include multiple blocks.
 
 <file_path_ignored_but_useful_for_context>
 <<<<<<< SEARCH
-[content to replace with]
+[content to find and replace]
 =======
-[content to replace with]
+[new content to insert]
 >>>>>>> REPLACE
 
 Special Cases:
@@ -1189,14 +1276,16 @@ Special Cases:
 
 Examples:
 
-1. Basic Replace:
+1. Fuzzy Replace (will match even if comments are slightly different):
 <apply_diff file_path="src/utils.ts">
   src/utils.ts
   <<<<<<< SEARCH
+  // old function
   function oldFunction() {
     return 1;
   }
   =======
+  // new, improved function
   function newFunction() {
     return 2;
   }
@@ -1216,16 +1305,84 @@ Examples:
 
 const stripLineNumbers = (text: string): string => {
   const lines = text.split("\n");
-  // Only strip if all non-empty lines have line numbers
   const allLinesNumbered = lines
     .filter((line) => line.trim() !== "")
     .every((line) => /^\s*\d+\s*\|/.test(line));
+  if (!allLinesNumbered) return text;
+  return lines.map((line) => line.replace(/^\s*\d+\s*\|\s?/, "")).join("\n");
+};
 
-  if (!allLinesNumbered) {
-    return text;
+const cleanBlock = (block: string) =>
+  block.replace(/^\r?\n/, "").replace(/\r?\n?$/, "");
+
+type SearchReplaceBlock = { search: string; replace: string };
+
+const parseDiff = (diffContent: string): SearchReplaceBlock[] | null => {
+  const blocks: SearchReplaceBlock[] = [];
+  const searchMarker = /^\s*<<<<<<< SEARCH\s*$/m;
+  const replaceMarker = /^\s*>>>>>>> REPLACE\s*$/m;
+
+  let content = diffContent;
+  const firstLineEnd = content.indexOf("\n");
+  if (firstLineEnd !== -1 && !content.substring(0, firstLineEnd).includes("<<<<<<<")) {
+    content = content.substring(firstLineEnd + 1);
   }
 
-  return lines.map((line) => line.replace(/^\s*\d+\s*\|\s?/, "")).join("\n");
+  while (searchMarker.test(content)) {
+    const searchStart = content.search(searchMarker);
+    const replaceEndMatch = content.match(replaceMarker);
+    if (!replaceEndMatch || typeof replaceEndMatch.index === "undefined") break;
+    
+    const replaceEnd = replaceEndMatch.index + replaceEndMatch[0].length;
+    const blockContent = content.substring(searchStart, replaceEnd);
+    
+    const parts = blockContent.split(
+      /^\s*<<<<<<< SEARCH\s*$|^\s*=======*\s*$|^\s*>>>>>>> REPLACE\s*$/m
+    );
+    
+    if (parts.length >= 4) {
+      blocks.push({
+        search: stripLineNumbers(cleanBlock(parts[1])),
+        replace: stripLineNumbers(cleanBlock(parts[2])),
+      });
+    }
+    content = content.substring(replaceEnd);
+  }
+
+  return blocks.length > 0 ? blocks : null;
+};
+
+const findBestMatch = (
+  sourceLines: readonly string[],
+  searchLines: readonly string[],
+  startLine: number,
+  endLine: number
+): { index: number; distance: number } | null => {
+  if (searchLines.length === 0) return null;
+
+  let bestMatchIndex = -1;
+  let minDistance = Infinity;
+  const searchText = searchLines.join("\n");
+  const maxDistanceThreshold = Math.floor(searchText.length * 0.08); // 8% difference tolerance
+
+  const searchStart = startLine - 1;
+  const searchEnd = endLine ?? sourceLines.length;
+
+  for (let i = searchStart; i <= searchEnd - searchLines.length; i++) {
+    const slice = sourceLines.slice(i, i + searchLines.length);
+    const sliceText = slice.join("\n");
+    const distance = levenshtein(searchText, sliceText);
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestMatchIndex = i;
+    }
+    if (distance === 0) break;
+  }
+  
+  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
+    return null;
+  }
+  return { index: bestMatchIndex, distance: minDistance };
 };
 
 export const applyDiff = (
@@ -1233,122 +1390,70 @@ export const applyDiff = (
   diff_content: string,
   options: { start_line?: number; end_line?: number } = {}
 ): ApplyDiffResult => {
-  let diff = diff_content;
-  const firstLineEnd = diff.indexOf("\n");
-  if (
-    firstLineEnd !== -1 &&
-    !diff.substring(0, firstLineEnd).includes("<<<<<<<")
-  ) {
-    diff = diff.substring(firstLineEnd + 1);
-  }
-
-  const parts = diff.split(
-    /^\s*<<<<<<< SEARCH\s*$|^\s*=======*\s*$|^\s*>>>>>>> REPLACE\s*$/m
-  );
-
-  if (parts.length < 4) {
+  const blocks = parseDiff(diff_content);
+  if (!blocks) {
     return createErrorResult(
       ERROR_CODES.INVALID_DIFF_FORMAT,
-      "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers."
+      "Invalid diff format. Could not parse any '<<<<<<< SEARCH'...'>>>>>>> REPLACE' blocks."
     );
   }
-// Log the entry point of a function for debugging
-console.log('Entering critical function...');
 
-  // Using .trim() is too aggressive and removes indentation.
-  // We want to remove the leading/trailing newlines that result from the split,
-  // but preserve the indentation of the code itself.
-  // Remove leading and trailing newlines, but preserve internal structure
-  const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n$/, "").replace(/([ \t]+)$/, "");
-  const searchBlock = stripLineNumbers(cleanBlock(parts[1]));
-  const replaceBlock = stripLineNumbers(cleanBlock(parts[2]));
+  let currentContent = original_content;
 
-  if (searchBlock === "") {
-    if (typeof options.start_line !== "number") {
+  for (const block of blocks) {
+    if (block.search === "") {
+      // Pure insertion
+      if (typeof options.start_line !== "number") {
+        return createErrorResult(
+          ERROR_CODES.INSERTION_REQUIRES_LINE_NUMBER,
+          "Insertion requires a start_line. A SEARCH block was empty, but no start_line was provided."
+        );
+      }
+      const lines = currentContent.split("\n");
+      const insertionIndex = Math.max(0, options.start_line - 1);
+      const replaceLines = block.replace.split("\n");
+      lines.splice(insertionIndex, 0, ...replaceLines);
+      currentContent = lines.join("\n");
+      continue;
+    }
+
+    const sourceLines = currentContent.split("\n");
+    const searchLines = block.search.split("\n");
+    const match = findBestMatch(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
+
+    if (match === null) {
       return createErrorResult(
-        ERROR_CODES.INSERTION_REQUIRES_LINE_NUMBER,
-        "Insertion requires a start_line. The SEARCH block was empty, but no start_line was provided to specify the insertion point."
+        ERROR_CODES.SEARCH_BLOCK_NOT_FOUND,
+        "Search block not found in the original content. The content to be replaced could not be located in the file, even with fuzzy matching."
       );
     }
-    const lines = original_content.split("\n");
-    const insertionIndex = Math.max(0, options.start_line - 1);
-    // Split the replaceBlock into lines and insert each line
-    const replaceLines = replaceBlock.split("\n");
-    lines.splice(insertionIndex, 0, ...replaceLines);
-    return { success: true, content: lines.join("\n") };
+    
+    const { index: matchStartIndex } = match;
+    const matchEndIndex = matchStartIndex + searchLines.length;
+    
+    const sourceMatchBlock = sourceLines.slice(matchStartIndex, matchEndIndex).join('\n');
+    const sourceMatchIndent = getCommonIndent(sourceMatchBlock);
+
+    const replaceLines = block.replace ? block.replace.split('\n') : [];
+    const replaceBaseIndent = getCommonIndent(block.replace);
+    
+    const reindentedReplaceLines = replaceLines.map(line => {
+        if (line.trim() === "") return "";
+        const dedentedLine = line.startsWith(replaceBaseIndent)
+          ? line.substring(replaceBaseIndent.length)
+          : line;
+        return sourceMatchIndent + dedentedLine;
+    });
+
+    const newSourceLines = [
+      ...sourceLines.slice(0, matchStartIndex),
+      ...reindentedReplaceLines,
+      ...sourceLines.slice(matchEndIndex)
+    ];
+
+    currentContent = newSourceLines.join("\n");
   }
 
-  const sourceLines = original_content.split("\n");
-  const searchLines = searchBlock.split("\n").filter(l => l.trim() !== '' || l.length > 0);
-  if (searchLines.length === 0) {
-      return createErrorResult(ERROR_CODES.SEARCH_BLOCK_NOT_FOUND, "Search block is empty or contains only whitespace.");
-  }
-
-  let matchStartIndex = -1;
-  const searchStart = (options.start_line ?? 1) - 1;
-  const searchEnd = options.end_line ? options.end_line : sourceLines.length;
-
-  for (let i = searchStart; i <= searchEnd - searchLines.length; i++) {
-    let isMatch = true;
-    for (let j = 0; j < searchLines.length; j++) {
-      if (sourceLines[i + j].trim() !== searchLines[j].trim()) {
-        isMatch = false;
-        break;
-      }
-    }
-    if (isMatch) {
-      matchStartIndex = i;
-      break;
-    }
-  }
-
-  if (matchStartIndex === -1) {
-    return createErrorResult(
-      ERROR_CODES.SEARCH_BLOCK_NOT_FOUND,
-      "Search block not found in the original content. The content to be replaced could not be located in the file."
-    );
-  }
-
-  const matchEndIndex = matchStartIndex + searchLines.length;
-
-  const getIndent = (line: string) => line.match(/^[ \t]*/)?.[0] || "";
-
-  let originalMatchIndent = "";
-  for (let i = matchStartIndex; i < matchEndIndex; i++) {
-      if (sourceLines[i].trim() !== "") {
-          originalMatchIndent = getIndent(sourceLines[i]);
-          break;
-      }
-  }
-
-  const replaceLines = replaceBlock === "" ? [] : replaceBlock.split('\n');
-  let replaceBaseIndent = "";
-   for (const line of replaceLines) {
-    if (line.trim() !== "") {
-        replaceBaseIndent = getIndent(line);
-        break;
-    }
-  }
-
-  const reindentedReplaceLines = replaceLines.map(line => {
-      if (line.trim() === "") return "";
-      const dedentedLine = line.startsWith(replaceBaseIndent)
-        ? line.substring(replaceBaseIndent.length)
-        : line;
-      return originalMatchIndent + dedentedLine;
-  });
-
-  const newLines = [
-    ...sourceLines.slice(0, matchStartIndex),
-    ...reindentedReplaceLines,
-    ...sourceLines.slice(matchEndIndex)
-  ];
-
-  // If we are deleting and the line before the deletion is empty, remove it to avoid weird spacing
-  if(replaceBlock.trim() === '' && matchStartIndex > 0 && sourceLines[matchStartIndex - 1].trim() === '') {
-    newLines.splice(matchStartIndex - 1, 1);
-  }
-
-  return { success: true, content: newLines.join("\n") };
+  return { success: true, content: currentContent };
 };
 ```

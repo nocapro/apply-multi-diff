@@ -6,13 +6,15 @@ import { levenshtein } from "../utils/string";
 type Hunk = {
   originalStartLine: number;
   originalLineCount: number;
+  newStartLine: number;
+  newLineCount: number;
   lines: string[];
 };
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Standard Diff Format
 
-Applies changes to a single file using the standard unified diff format (the same format used by \`git diff\`). This tool is highly resilient and can apply partial changes even if some parts of the diff do not match perfectly, by intelligently splitting changes into smaller parts.
+Applies changes to a single file using the standard unified diff format. This tool is highly resilient and uses multiple fallback strategies (fuzzy matching, hunk splitting) to apply changes even if the source file has been modified.
 
 Parameters:
   :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
@@ -46,7 +48,7 @@ Example:
 const parseHunks = (diffContent: string): Hunk[] | null => {
   const lines = diffContent.split("\n");
   const hunks: Hunk[] = [];
-  let currentHunk: Hunk | null = null;
+  let currentHunk: Omit<Hunk, 'lines'> & { lines: string[] } | null = null;
   const hunkHeaderRegex = /^@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@/;
 
   for (const line of lines) {
@@ -58,6 +60,8 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
       currentHunk = {
         originalStartLine: parseInt(match[1], 10),
         originalLineCount: match[3] ? parseInt(match[3], 10) : 1,
+        newStartLine: parseInt(match[4], 10),
+        newLineCount: match[6] ? parseInt(match[6], 10) : 1,
         lines: [],
       };
     } else if (
@@ -71,26 +75,7 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const applyHunk = (
-  sourceLines: readonly string[],
-  hunk: Hunk
-): { success: true; newLines: string[] } | { success: false } => {
-  const pattern = hunk.lines
-    .filter((l) => l.startsWith(" ") || l.startsWith("-"))
-    .map((l) => l.substring(1));
-
-  if (pattern.length === 0) {
-    // This is a pure insertion, rely on the hunk's line number
-    const result = [...sourceLines];
-    const additions = hunk.lines
-      .filter((l) => l.startsWith("+"))
-      .map((l) => l.substring(1));
-    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
-    result.splice(insertionPoint, 0, ...additions);
-    return { success: true, newLines: result };
-  }
-
-  const performApply = (startIndex: number): string[] => {
+const applyHunkAt = (sourceLines: readonly string[], hunk: Hunk, startIndex: number): string[] => {
     const result: string[] = [...sourceLines.slice(0, startIndex)];
     let sourceIdx = startIndex;
 
@@ -99,87 +84,92 @@ const applyHunk = (
       if (hunkLine.startsWith("+")) {
         result.push(lineContent);
       } else if (hunkLine.startsWith(" ")) {
-        // For context lines, use the content from the source file to preserve it
-        // perfectly, especially after a fuzzy match.
         if (sourceIdx < sourceLines.length) {
           result.push(sourceLines[sourceIdx]);
         }
         sourceIdx++;
       } else if (hunkLine.startsWith("-")) {
-        // For removed lines, just advance the source pointer.
         sourceIdx++;
       }
     }
     result.push(...sourceLines.slice(sourceIdx));
     return result;
-  };
+};
 
-  // --- Multi-stage search for best match ---
+const findAndApplyHunk = (
+  sourceLines: readonly string[],
+  hunk: Hunk
+): { success: true; newLines: string[] } | { success: false } => {
+  const pattern = hunk.lines
+    .filter((l) => l.startsWith(" ") || l.startsWith("-"))
+    .map((l) => l.substring(1));
 
-  // Stage 1: Exact match at the expected line number (fast path)
+  if (pattern.length === 0) {
+    // Pure insertion. Trust the line number.
+    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    const result = [...sourceLines];
+    const additions = hunk.lines
+      .filter((l) => l.startsWith("+"))
+      .map((l) => l.substring(1));
+    result.splice(insertionPoint, 0, ...additions);
+    return { success: true, newLines: result };
+  }
+
+  // --- STAGE 1: Exact Match (Fast Path) ---
   const expectedStartIndex = hunk.originalStartLine - 1;
-  if (
-    expectedStartIndex >= 0 &&
-    expectedStartIndex + pattern.length <= sourceLines.length
-  ) {
-    const slice = sourceLines.slice(
-      expectedStartIndex,
-      expectedStartIndex + pattern.length
-    );
+  if (expectedStartIndex >= 0 && expectedStartIndex + pattern.length <= sourceLines.length) {
+    const slice = sourceLines.slice(expectedStartIndex, expectedStartIndex + pattern.length);
     if (slice.join("\n") === pattern.join("\n")) {
-      return { success: true, newLines: performApply(expectedStartIndex) };
+      return { success: true, newLines: applyHunkAt(sourceLines, hunk, expectedStartIndex) };
     }
   }
 
-  // Stage 2: Fuzzy match using Levenshtein distance
+  // --- STAGE 2: Fuzzy Match (Global Search) ---
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
   const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
-    const slice = sourceLines.slice(i, i + pattern.length);
-    const sliceText = slice.join("\n");
-
-    if (sliceText === patternText) {
-      minDistance = 0;
-      bestMatchIndex = i;
-      break; // Perfect match found, no need to search further.
-    }
-
+    const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
     const distance = levenshtein(patternText, sliceText);
-
     if (distance < minDistance) {
       minDistance = distance;
       bestMatchIndex = i;
     }
+    if (distance === 0) break; // Perfect match found
   }
 
-  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
-    return { success: false };
+  if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
+    return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
   }
 
-  return { success: true, newLines: performApply(bestMatchIndex) };
+  return { success: false };
 };
+
 
 const splitHunk = (hunk: Hunk): Hunk[] => {
   const subHunks: Hunk[] = [];
-  const context = 2;
+  const context = 2; 
   let i = 0;
   while (i < hunk.lines.length) {
+    // Skip leading context
     while (i < hunk.lines.length && hunk.lines[i].startsWith(" ")) i++;
     if (i === hunk.lines.length) break;
 
-    const changeStart = i;
+    const changeBlockStart = i;
+    // Find end of this change block
     while (i < hunk.lines.length && !hunk.lines[i].startsWith(" ")) i++;
-    const changeEnd = i;
+    const changeBlockEnd = i;
 
-    const start = Math.max(0, changeStart - context);
-    const end = Math.min(hunk.lines.length, changeEnd + context);
+    const subHunkStart = Math.max(0, changeBlockStart - context);
+    const subHunkEnd = Math.min(hunk.lines.length, changeBlockEnd + context);
+    
+    const subHunkLines = hunk.lines.slice(subHunkStart, subHunkEnd);
 
     subHunks.push({
-      ...hunk,
-      lines: hunk.lines.slice(start, end),
+      ...hunk, // Carry over metadata, although it's less accurate for sub-hunks
+      lines: subHunkLines,
     });
   }
   return subHunks;
@@ -193,60 +183,60 @@ export const applyDiff = (
   if (!hunks) {
     return createErrorResult(
       ERROR_CODES.INVALID_DIFF_FORMAT,
-      "Invalid diff format. Could not parse any hunks from the diff content."
+      "Invalid diff format. Could not parse any hunks."
     );
   }
-
+  
+  // Basic validation for overlapping hunks
   for (let i = 0; i < hunks.length; i++) {
     for (let j = i + 1; j < hunks.length; j++) {
       const h1 = hunks[i];
-      const h1End = h1.originalStartLine + h1.originalLineCount - 1;
+      const h1End = h1.originalStartLine + h1.originalLineCount;
       const h2 = hunks[j];
-      const h2End = h2.originalStartLine + h2.originalLineCount - 1;
-      if (
-        Math.max(h1.originalStartLine, h2.originalStartLine) <=
-        Math.min(h1End, h2End)
-      ) {
-        return createErrorResult(
-          ERROR_CODES.OVERLAPPING_HUNKS,
-          "Hunks overlap. The provided diff contains multiple change hunks that target the same or overlapping line ranges, creating an ambiguity that cannot be resolved."
-        );
+      if (Math.max(h1.originalStartLine, h2.originalStartLine) < Math.min(h1End, h2.originalStartLine + h2.originalLineCount)) {
+        return createErrorResult(ERROR_CODES.OVERLAPPING_HUNKS, "Hunks overlap, which is not supported.");
       }
     }
   }
 
   let lines: readonly string[] = originalContent.split("\n");
+  let appliedSuccessfully = true;
 
   for (const hunk of hunks) {
-    const result = applyHunk(lines, hunk);
+    const result = findAndApplyHunk(lines, hunk);
     if (result.success) {
       lines = result.newLines;
     } else {
+      // --- FALLBACK: Hunk Splitting ---
       const subHunks = splitHunk(hunk);
-      if (subHunks.length <= 1) {
-        return createErrorResult(
-          ERROR_CODES.CONTEXT_MISMATCH,
-          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
-        );
+      if (subHunks.length <= 1) { // No benefit in splitting a single change block
+        appliedSuccessfully = false;
+        break;
       }
 
-      let allApplied = true;
+      let allSubHunksApplied = true;
       for (const subHunk of subHunks) {
-        const subResult = applyHunk(lines, subHunk);
+        const subResult = findAndApplyHunk(lines, subHunk);
         if (subResult.success) {
           lines = subResult.newLines;
         } else {
-          allApplied = false;
+          allSubHunksApplied = false;
           break;
         }
       }
-      if (!allApplied) {
-        return createErrorResult(
-          ERROR_CODES.CONTEXT_MISMATCH,
-          "Could not apply modification. The context provided in the diff does not match the content of the file. Hunk splitting fallback was also unsuccessful."
-        );
+
+      if (!allSubHunksApplied) {
+        appliedSuccessfully = false;
+        break;
       }
     }
+  }
+
+  if (!appliedSuccessfully) {
+    return createErrorResult(
+      ERROR_CODES.CONTEXT_MISMATCH,
+      "Could not apply modification. A hunk could not be matched, even with fuzzy search and hunk splitting fallbacks."
+    );
   }
 
   return { success: true, content: lines.join("\n") };

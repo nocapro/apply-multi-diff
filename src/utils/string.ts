@@ -22,18 +22,30 @@ export const levenshtein = (s1: string, s2: string): number => {
 export const getIndent = (line: string): string =>
   line.match(/^[ \t]*/)?.[0] || "";
 
+/**
+ * Finds the shortest leading whitespace sequence among all non-empty lines,
+ * which represents the common base indentation for a block of text.
+ */
 export const getCommonIndent = (text: string): string => {
   const lines = text.split("\n").filter((line) => line.trim() !== "");
-  if (lines.length === 0) {
-    return "";
-  }
+  if (!lines.length) return "";
 
-  let shortestIndent = getIndent(lines[0]);
-  for (let i = 1; i < lines.length; i++) {
-    const indent = getIndent(lines[i]);
-    if (indent.length < shortestIndent.length) {
-      shortestIndent = indent;
+  return lines.reduce((shortest, line) => {
+    const currentIndent = getIndent(line);
+    if (currentIndent.length < shortest.length) {
+      return currentIndent;
     }
-  }
-  return shortestIndent;
+    return shortest;
+  }, getIndent(lines[0]));
+};
+
+export const dedent = (text: string): string => {
+  const commonIndent = getCommonIndent(text);
+  if (!commonIndent) return text;
+  return text
+    .split("\n")
+    .map((line) =>
+      line.startsWith(commonIndent) ? line.substring(commonIndent.length) : line
+    )
+    .join("\n");
 };
