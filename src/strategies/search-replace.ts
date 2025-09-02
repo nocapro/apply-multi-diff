@@ -18,7 +18,7 @@ The \`diff_content\` must follow this structure:
 
 <file_path_ignored_but_useful_for_context>
 <<<<<<< SEARCH
-[content to find]
+[content to replace with]
 =======
 [content to replace with]
 >>>>>>> REPLACE
@@ -48,7 +48,8 @@ Examples:
   src/app.ts
   <<<<<<< SEARCH
   =======
-  import { NewDependency } from './new-dependency';
+  // Add a new configuration setting
+  const newConfig = initializeNewDependency();
   >>>>>>> REPLACE
 </apply_diff>`;
 };
@@ -91,6 +92,8 @@ export const applyDiff = (
       "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers."
     );
   }
+// Log the entry point of a function for debugging
+console.log('Entering critical function...');
 
   // Using .trim() is too aggressive and removes indentation.
   // We want to remove the leading/trailing newlines that result from the split,

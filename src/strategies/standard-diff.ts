@@ -1,6 +1,7 @@
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
+import { levenshtein } from "../utils/string";
 
 type Hunk = {
   originalStartLine: number;
@@ -70,104 +71,95 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const levenshtein = (s1: string, s2: string): number => {
-  if (s1.length < s2.length) {
-    return levenshtein(s2, s1);
-  }
-  if (s2.length === 0) {
-    return s1.length;
-  }
-  let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
-  for (let i = 0; i < s1.length; i++) {
-    let currentRow = [i + 1];
-    for (let j = 0; j < s2.length; j++) {
-      const insertions = previousRow[j + 1] + 1;
-      const deletions = currentRow[j] + 1;
-      const substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
-      currentRow.push(Math.min(insertions, deletions, substitutions));
-    }
-    previousRow = currentRow;
-  }
-  return previousRow[previousRow.length - 1];
-};
-
 const applyHunk = (
   sourceLines: readonly string[],
   hunk: Hunk
 ): { success: true; newLines: string[] } | { success: false } => {
-  if (hunk.lines.every((l) => l.startsWith("+"))) {
-    const result = [...sourceLines];
-    const additions = hunk.lines.map((l) => l.substring(1));
-    const insertionPoint =
-      hunk.originalStartLine > 0 ? hunk.originalStartLine - 1 : 0;
-    result.splice(insertionPoint, 0, ...additions);
-    return { success: true, newLines: result };
-  }
-
   const pattern = hunk.lines
     .filter((l) => l.startsWith(" ") || l.startsWith("-"))
     .map((l) => l.substring(1));
 
   if (pattern.length === 0) {
+    // This is a pure insertion, rely on the hunk's line number
     const result = [...sourceLines];
     const additions = hunk.lines
       .filter((l) => l.startsWith("+"))
       .map((l) => l.substring(1));
-    result.splice(hunk.originalStartLine - 1, 0, ...additions);
+    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    result.splice(insertionPoint, 0, ...additions);
     return { success: true, newLines: result };
   }
 
+  const performApply = (startIndex: number): string[] => {
+    const result: string[] = [...sourceLines.slice(0, startIndex)];
+    let sourceIdx = startIndex;
+
+    for (const hunkLine of hunk.lines) {
+      const lineContent = hunkLine.substring(1);
+      if (hunkLine.startsWith("+")) {
+        result.push(lineContent);
+      } else if (hunkLine.startsWith(" ")) {
+        // For context lines, use the content from the source file to preserve it
+        // perfectly, especially after a fuzzy match.
+        if (sourceIdx < sourceLines.length) {
+          result.push(sourceLines[sourceIdx]);
+        }
+        sourceIdx++;
+      } else if (hunkLine.startsWith("-")) {
+        // For removed lines, just advance the source pointer.
+        sourceIdx++;
+      }
+    }
+    result.push(...sourceLines.slice(sourceIdx));
+    return result;
+  };
+
+  // --- Multi-stage search for best match ---
+
+  // Stage 1: Exact match at the expected line number (fast path)
+  const expectedStartIndex = hunk.originalStartLine - 1;
+  if (
+    expectedStartIndex >= 0 &&
+    expectedStartIndex + pattern.length <= sourceLines.length
+  ) {
+    const slice = sourceLines.slice(
+      expectedStartIndex,
+      expectedStartIndex + pattern.length
+    );
+    if (slice.join("\n") === pattern.join("\n")) {
+      return { success: true, newLines: performApply(expectedStartIndex) };
+    }
+  }
+
+  // Stage 2: Fuzzy match using Levenshtein distance
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  // Don't allow fuzzy matching for very small patterns to avoid incorrect matches.
-  const useFuzzy = patternText.length > 20;
-  const maxDistanceThreshold = Math.max(
-    5,
-    Math.floor(patternText.length * 0.4)
-  );
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const slice = sourceLines.slice(i, i + pattern.length);
     const sliceText = slice.join("\n");
-    const distance = useFuzzy
-      ? levenshtein(patternText, sliceText)
-      : sliceText === patternText
-        ? 0
-        : Infinity;
+
+    if (sliceText === patternText) {
+      minDistance = 0;
+      bestMatchIndex = i;
+      break; // Perfect match found, no need to search further.
+    }
+
+    const distance = levenshtein(patternText, sliceText);
 
     if (distance < minDistance) {
       minDistance = distance;
       bestMatchIndex = i;
     }
-    if (distance === 0) break; // Perfect match found
   }
 
-  if (bestMatchIndex === -1 || (useFuzzy && minDistance > maxDistanceThreshold)) {
+  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
     return { success: false };
   }
 
-  const result: string[] = [...sourceLines.slice(0, bestMatchIndex)];
-  let sourceIdx = bestMatchIndex;
-
-  for (const hunkLine of hunk.lines) {
-    const lineContent = hunkLine.substring(1);
-    if (hunkLine.startsWith("+")) {
-      result.push(lineContent);
-    } else if (hunkLine.startsWith(" ")) {
-      // For context lines, use the content from the source file to preserve it
-      // perfectly, especially after a fuzzy match.
-      if (sourceIdx < sourceLines.length) {
-        result.push(sourceLines[sourceIdx]);
-      }
-      sourceIdx++;
-    } else if (hunkLine.startsWith("-")) {
-      // For removed lines, just advance the source pointer.
-      sourceIdx++;
-    }
-  }
-  result.push(...sourceLines.slice(sourceIdx));
-  return { success: true, newLines: result };
+  return { success: true, newLines: performApply(bestMatchIndex) };
 };
 
 const splitHunk = (hunk: Hunk): Hunk[] => {

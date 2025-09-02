@@ -7,6 +7,7 @@ src/
   utils/
     error.ts
     logger.ts
+    string.ts
   constants.ts
   index.ts
   types.ts
@@ -22,6 +23,49 @@ tsconfig.json
 ```
 
 # Files
+
+## File: src/utils/string.ts
+```typescript
+export const levenshtein = (s1: string, s2: string): number => {
+  if (s1.length < s2.length) {
+    return levenshtein(s2, s1);
+  }
+  if (s2.length === 0) {
+    return s1.length;
+  }
+  let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
+  for (let i = 0; i < s1.length; i++) {
+    let currentRow = [i + 1];
+    for (let j = 0; j < s2.length; j++) {
+      const insertions = previousRow[j + 1] + 1;
+      const deletions = currentRow[j] + 1;
+      const substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
+      currentRow.push(Math.min(insertions, deletions, substitutions));
+    }
+    previousRow = currentRow;
+  }
+  return previousRow[previousRow.length - 1];
+};
+
+export const getIndent = (line: string): string =>
+  line.match(/^[ \t]*/)?.[0] || "";
+
+export const getCommonIndent = (text: string): string => {
+  const lines = text.split("\n").filter((line) => line.trim() !== "");
+  if (lines.length === 0) {
+    return "";
+  }
+
+  let shortestIndent = getIndent(lines[0]);
+  for (let i = 1; i < lines.length; i++) {
+    const indent = getIndent(lines[i]);
+    if (indent.length < shortestIndent.length) {
+      shortestIndent = indent;
+    }
+  }
+  return shortestIndent;
+};
+```
 
 ## File: src/utils/error.ts
 ```typescript
@@ -66,12 +110,20 @@ export const ERROR_CODES = {
 
 ## File: src/index.ts
 ```typescript
-export * from "./strategies/standard-diff";
-export * from "./strategies/search-replace";
+export {
+  applyDiff as applyStandardDiff,
+  getToolDescription as getStandardDiffToolDescription,
+} from "./strategies/standard-diff";
+export {
+  applyDiff as applySearchReplace,
+  getToolDescription as getSearchReplaceToolDescription,
+} from "./strategies/search-replace";
+
 export * from "./types";
 export * from "./constants";
 export * from "./utils/error";
 export * from "./utils/logger";
+export * from "./utils/string";
 ```
 
 ## File: src/types.ts
@@ -324,6 +376,7 @@ describe("Standard Diff Strategy", () => {
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
+import { levenshtein } from "../utils/string";
 
 type Hunk = {
   originalStartLine: number;
@@ -393,104 +446,95 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
   return hunks.length > 0 ? hunks : null;
 };
 
-const levenshtein = (s1: string, s2: string): number => {
-  if (s1.length < s2.length) {
-    return levenshtein(s2, s1);
-  }
-  if (s2.length === 0) {
-    return s1.length;
-  }
-  let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
-  for (let i = 0; i < s1.length; i++) {
-    let currentRow = [i + 1];
-    for (let j = 0; j < s2.length; j++) {
-      const insertions = previousRow[j + 1] + 1;
-      const deletions = currentRow[j] + 1;
-      const substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
-      currentRow.push(Math.min(insertions, deletions, substitutions));
-    }
-    previousRow = currentRow;
-  }
-  return previousRow[previousRow.length - 1];
-};
-
 const applyHunk = (
   sourceLines: readonly string[],
   hunk: Hunk
 ): { success: true; newLines: string[] } | { success: false } => {
-  if (hunk.lines.every((l) => l.startsWith("+"))) {
-    const result = [...sourceLines];
-    const additions = hunk.lines.map((l) => l.substring(1));
-    const insertionPoint =
-      hunk.originalStartLine > 0 ? hunk.originalStartLine - 1 : 0;
-    result.splice(insertionPoint, 0, ...additions);
-    return { success: true, newLines: result };
-  }
-
   const pattern = hunk.lines
     .filter((l) => l.startsWith(" ") || l.startsWith("-"))
     .map((l) => l.substring(1));
 
   if (pattern.length === 0) {
+    // This is a pure insertion, rely on the hunk's line number
     const result = [...sourceLines];
     const additions = hunk.lines
       .filter((l) => l.startsWith("+"))
       .map((l) => l.substring(1));
-    result.splice(hunk.originalStartLine - 1, 0, ...additions);
+    const insertionPoint = Math.max(0, hunk.originalStartLine - 1);
+    result.splice(insertionPoint, 0, ...additions);
     return { success: true, newLines: result };
   }
 
+  const performApply = (startIndex: number): string[] => {
+    const result: string[] = [...sourceLines.slice(0, startIndex)];
+    let sourceIdx = startIndex;
+
+    for (const hunkLine of hunk.lines) {
+      const lineContent = hunkLine.substring(1);
+      if (hunkLine.startsWith("+")) {
+        result.push(lineContent);
+      } else if (hunkLine.startsWith(" ")) {
+        // For context lines, use the content from the source file to preserve it
+        // perfectly, especially after a fuzzy match.
+        if (sourceIdx < sourceLines.length) {
+          result.push(sourceLines[sourceIdx]);
+        }
+        sourceIdx++;
+      } else if (hunkLine.startsWith("-")) {
+        // For removed lines, just advance the source pointer.
+        sourceIdx++;
+      }
+    }
+    result.push(...sourceLines.slice(sourceIdx));
+    return result;
+  };
+
+  // --- Multi-stage search for best match ---
+
+  // Stage 1: Exact match at the expected line number (fast path)
+  const expectedStartIndex = hunk.originalStartLine - 1;
+  if (
+    expectedStartIndex >= 0 &&
+    expectedStartIndex + pattern.length <= sourceLines.length
+  ) {
+    const slice = sourceLines.slice(
+      expectedStartIndex,
+      expectedStartIndex + pattern.length
+    );
+    if (slice.join("\n") === pattern.join("\n")) {
+      return { success: true, newLines: performApply(expectedStartIndex) };
+    }
+  }
+
+  // Stage 2: Fuzzy match using Levenshtein distance
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  // Don't allow fuzzy matching for very small patterns to avoid incorrect matches.
-  const useFuzzy = patternText.length > 20;
-  const maxDistanceThreshold = Math.max(
-    5,
-    Math.floor(patternText.length * 0.4)
-  );
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.4); // 40% difference tolerance
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const slice = sourceLines.slice(i, i + pattern.length);
     const sliceText = slice.join("\n");
-    const distance = useFuzzy
-      ? levenshtein(patternText, sliceText)
-      : sliceText === patternText
-        ? 0
-        : Infinity;
+
+    if (sliceText === patternText) {
+      minDistance = 0;
+      bestMatchIndex = i;
+      break; // Perfect match found, no need to search further.
+    }
+
+    const distance = levenshtein(patternText, sliceText);
 
     if (distance < minDistance) {
       minDistance = distance;
       bestMatchIndex = i;
     }
-    if (distance === 0) break; // Perfect match found
   }
 
-  if (bestMatchIndex === -1 || (useFuzzy && minDistance > maxDistanceThreshold)) {
+  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
     return { success: false };
   }
 
-  const result: string[] = [...sourceLines.slice(0, bestMatchIndex)];
-  let sourceIdx = bestMatchIndex;
-
-  for (const hunkLine of hunk.lines) {
-    const lineContent = hunkLine.substring(1);
-    if (hunkLine.startsWith("+")) {
-      result.push(lineContent);
-    } else if (hunkLine.startsWith(" ")) {
-      // For context lines, use the content from the source file to preserve it
-      // perfectly, especially after a fuzzy match.
-      if (sourceIdx < sourceLines.length) {
-        result.push(sourceLines[sourceIdx]);
-      }
-      sourceIdx++;
-    } else if (hunkLine.startsWith("-")) {
-      // For removed lines, just advance the source pointer.
-      sourceIdx++;
-    }
-  }
-  result.push(...sourceLines.slice(sourceIdx));
-  return { success: true, newLines: result };
+  return { success: true, newLines: performApply(bestMatchIndex) };
 };
 
 const splitHunk = (hunk: Hunk): Hunk[] => {
@@ -582,279 +626,6 @@ export const applyDiff = (
 
   return { success: true, content: lines.join("\n") };
 };
-```
-
-## File: test/fixtures/search-replace.yml
-```yaml
-# Tests for the `getToolDescription` function
-tool_description_tests:
-  - name: description-contains-key-elements
-    description: Should generate a description that includes the CWD and format requirements
-    input:
-      cwd: "/mock/workspace"
-    expected_to_contain:
-      - "current working directory /mock/workspace"
-      - "<<<<<<< SEARCH"
-      - "======="
-      - ">>>>>>> REPLACE"
-      - "start_line"
-      - "end_line"
-
-# Tests for the `applyDiff` function
-apply_diff_tests:
-  - name: replace-exact-match
-    description: Should replace content that is an exact match
-    input:
-      original_content: |
-        function hello() {
-            console.log("hello")
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        function hello() {
-            console.log("hello")
-        }
-        =======
-        function hello() {
-            console.log("hello world")
-        }
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: |
-        function hello() {
-            console.log("hello world");
-        }
-
-  - name: preserve-indentation-on-addition
-    description: Should preserve original indentation when adding new lines
-    input:
-      original_content: |
-        class Example {
-            getValue() {
-                return this.value
-            }
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-            getValue() {
-                return this.value
-            }
-        =======
-            getValue() {
-                // Add logging
-                console.log("Getting value")
-                return this.value
-            }
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: |
-        class Example {
-            getValue() {
-                // Add logging
-                console.log("Getting value");
-                return this.value;
-            }
-        }
-
-  - name: fail-on-no-match
-    description: Should fail gracefully if the search content does not match
-    input:
-      original_content: |
-        function hello() {
-            console.log("hello")
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        function hello() {
-            console.log("wrong")
-        }
-        =======
-        function hello() {
-            console.log("hello world")
-        }
-        >>>>>>> REPLACE
-    expected:
-      success: false
-      reason: "Search block not found"
-
-  - name: indentation-agnostic-search-and-preserve
-    description: Should find content regardless of its indentation and preserve it on replace
-    input:
-      original_content: |
-            function test() {
-                return true;
-            }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        function test() {
-            return true;
-        }
-        =======
-        function test() {
-            return false;
-        }
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: |
-            function test() {
-                return false;
-            }
-
-  - name: respect-relative-indentation-in-replace
-    description: Should respect the relative indentation inside the REPLACE block
-    input:
-      original_content: |
-        class Test {
-            method() {
-                console.log("test");
-            }
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-            method() {
-                console.log("test");
-            }
-        =======
-            method() {
-                try {
-                    if (true) {
-                        console.log("test");
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: |
-        class Test {
-            method() {
-                try {
-                    if (true) {
-                        console.log("test");
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-
-  - name: fail-on-invalid-format
-    description: Should fail gracefully if the diff format is invalid
-    input:
-      original_content: "function hello() {}"
-      diff_content: "This is not a valid format"
-    expected:
-      success: false
-      reason: "Invalid diff format"
-
-  - name: strip-line-numbers
-    description: Should strip leading line numbers from search and replace blocks
-    input:
-      original_content: "    return true;"
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        2 |     return true;
-        =======
-        2 |     return false; // A comment
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: "    return false; // A comment"
-
-  - name: insertion-with-start-line
-    description: Should insert code at a specific line when the search block is empty
-    input:
-      original_content: |
-        function test() {
-            const x = 1;
-            return x;
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        =======
-            console.log("Adding log");
-        >>>>>>> REPLACE
-      start_line: 2
-      end_line: 2
-    expected:
-      success: true
-      content: |
-        function test() {
-            console.log("Adding log");
-            const x = 1;
-        }
-
-  - name: insertion-fail-without-line-number
-    description: Should fail an insertion if no start_line is provided
-    input:
-      original_content: "function test() {}"
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        =======
-        console.log("test");
-        >>>>>>> REPLACE
-    expected:
-      success: false
-      reason: "Insertion requires a start_line"
-
-  - name: deletion
-    description: Should delete code when the replace block is empty
-    input:
-      original_content: |
-
-        function test() {
-            // Comment to remove
-        }
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-            // Comment to remove
-        =======
-        >>>>>>> REPLACE
-    expected:
-      success: true
-      content: |
-        function test() {}
-
-  - name: constrained-search-target-specific-duplicate
-    description: Should use line numbers to target a specific instance of duplicate code
-    input:
-      original_content: |
-        // Instance 1
-        processData();
-
-        // Instance 2
-        processData();
-      diff_content: |
-        test.ts
-        <<<<<<< SEARCH
-        processData();
-        =======
-        processData(config);
-        >>>>>>> REPLACE
-      start_line: 5
-      end_line: 5
-    expected:
-      success: true
-      content: |
-        // Instance 1
-        processData();
-
-        // Instance 2
-        processData(config);
 ```
 
 ## File: test/fixtures/standard-diff.yml
@@ -1109,6 +880,282 @@ apply_diff_tests:
       reason: "Hunks overlap"
 ```
 
+## File: test/fixtures/search-replace.yml
+```yaml
+# Tests for the `getToolDescription` function
+tool_description_tests:
+  - name: description-contains-key-elements
+    description: Should generate a description that includes the CWD and format requirements
+    input:
+      cwd: "/mock/workspace"
+    expected_to_contain:
+      - "current working directory /mock/workspace"
+      - "<<<<<<< SEARCH"
+      - "======="
+      - ">>>>>>> REPLACE"
+      - "start_line"
+      - "end_line"
+
+# Tests for the `applyDiff` function
+apply_diff_tests:
+  - name: replace-exact-match
+    description: Should replace content that is an exact match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("hello")
+        }
+        =======
+        function hello() {
+            console.log("hello world");
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+            console.log("hello world");
+        }
+
+  - name: preserve-indentation-on-addition
+    description: Should preserve original indentation when adding new lines
+    input:
+      original_content: |
+        class Example {
+            getValue() {
+                return this.value
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            getValue() {
+                return this.value
+            }
+        =======
+            getValue() {
+                // Add logging
+                console.log("Getting value");
+                return this.value;
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Example {
+            getValue() {
+                // Add logging
+                console.log("Getting value");
+                return this.value;
+            }
+        }
+
+  - name: fail-on-no-match
+    description: Should fail gracefully if the search content does not match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("wrong")
+        }
+        =======
+        function hello() {
+            console.log("hello world")
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+
+  - name: indentation-agnostic-search-and-preserve
+    description: Should find content regardless of its indentation and preserve it on replace
+    input:
+      original_content: |
+            function test() {
+                return true;
+            }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function test() {
+            return true;
+        }
+        =======
+        function test() {
+            return false;
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+            function test() {
+                return false;
+            }
+
+  - name: respect-relative-indentation-in-replace
+    description: Should respect the relative indentation inside the REPLACE block
+    input:
+      original_content: |
+        class Test {
+            method() {
+                console.log("test");
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            method() {
+                console.log("test");
+            }
+        =======
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Test {
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+
+  - name: fail-on-invalid-format
+    description: Should fail gracefully if the diff format is invalid
+    input:
+      original_content: "function hello() {}"
+      diff_content: "This is not a valid format"
+    expected:
+      success: false
+      reason: "Invalid diff format"
+
+  - name: strip-line-numbers
+    description: Should strip leading line numbers from search and replace blocks
+    input:
+      original_content: "    return true;"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        2 |     return true;
+        =======
+        2 |     return false; // A comment
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "    return false; // A comment"
+
+  - name: insertion-with-start-line
+    description: Should insert code at a specific line when the search block is empty
+    input:
+      original_content: |
+        function test() {
+            const x = 1;
+            return x;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+            console.log("Adding log");
+        >>>>>>> REPLACE
+      start_line: 2
+      end_line: 2
+    expected:
+      success: true
+      content: |
+        function test() {
+            console.log("Adding log");
+            const x = 1;
+            return x;
+        }
+
+  - name: insertion-fail-without-line-number
+    description: Should fail an insertion if no start_line is provided
+    input:
+      original_content: "function test() {}"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("test");
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Insertion requires a start_line"
+
+  - name: deletion
+    description: Should delete code when the replace block is empty
+    input:
+      original_content: |
+
+        function test() {
+            // Comment to remove
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // Comment to remove
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+
+        function test() {
+        }
+
+  - name: constrained-search-target-specific-duplicate
+    description: Should use line numbers to target a specific instance of duplicate code
+    input:
+      original_content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData();
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        processData();
+        =======
+        processData(config);
+        >>>>>>> REPLACE
+      start_line: 5
+      end_line: 5
+    expected:
+      success: true
+      content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData(config);
+```
+
 ## File: src/strategies/search-replace.ts
 ```typescript
 import { ERROR_CODES } from "../constants";
@@ -1131,7 +1178,7 @@ The \`diff_content\` must follow this structure:
 
 <file_path_ignored_but_useful_for_context>
 <<<<<<< SEARCH
-[content to find]
+[content to replace with]
 =======
 [content to replace with]
 >>>>>>> REPLACE
@@ -1161,7 +1208,8 @@ Examples:
   src/app.ts
   <<<<<<< SEARCH
   =======
-  import { NewDependency } from './new-dependency';
+  // Add a new configuration setting
+  const newConfig = initializeNewDependency();
   >>>>>>> REPLACE
 </apply_diff>`;
 };
@@ -1204,6 +1252,8 @@ export const applyDiff = (
       "Invalid diff format. The diff must contain '<<<<<<< SEARCH', '=======', and '>>>>>>> REPLACE' markers."
     );
   }
+// Log the entry point of a function for debugging
+console.log('Entering critical function...');
 
   // Using .trim() is too aggressive and removes indentation.
   // We want to remove the leading/trailing newlines that result from the split,
@@ -1271,7 +1321,7 @@ export const applyDiff = (
       }
   }
 
-  const replaceLines = replaceBlock.split('\n');
+  const replaceLines = replaceBlock === "" ? [] : replaceBlock.split('\n');
   let replaceBaseIndent = "";
    for (const line of replaceLines) {
     if (line.trim() !== "") {
