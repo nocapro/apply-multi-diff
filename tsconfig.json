@@ -1,7 +1,8 @@
 {
   "include": [
     "test",
-    "src"
+    "src",
+    "debug.ts"
   ],
   "compilerOptions": {
     "lib": ["ESNext"],

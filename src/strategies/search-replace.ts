@@ -67,7 +67,11 @@ const stripLineNumbers = (text: string): string => {
 };
 
 const cleanBlock = (block: string) =>
-  block.replace(/^\r?\n/, "").replace(/\r?\n?$/, "");
+  // Be less greedy with the trailing newline, to distinguish
+  // a search for a blank line from an empty search block.
+  // \n\n (search for blank line) -> \n
+  // \n (empty search block) -> ''
+  block.replace(/^\r?\n/, "").replace(/\r?\n$/, "");
 
 type SearchReplaceBlock = { search: string; replace: string };
 
@@ -118,10 +122,8 @@ const findBestMatch = (
   let minDistance = Infinity;
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
-  const maxDistanceThreshold = Math.max(
-    10, // a minimum for short blocks or substring-like matches
-    Math.floor(dedentedSearchText.length * 0.5) // 50% tolerance for fuzzy matching
-  );
+  // More tolerant threshold for substring-like matches and trailing comments.
+  const maxDistanceThreshold = Math.max(20, Math.floor(dedentedSearchText.length * 0.7));
 
   const searchStart = startLine - 1;
   const searchEnd = endLine ?? sourceLines.length;
@@ -208,9 +210,13 @@ export const applyDiff = (
         const currentLineIndent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
         if (insertionIndex > 0) {
           const prevLineIndent = lines[insertionIndex - 1].match(/^[ \t]*/)?.[0] || "";
+          const prevLineTrimmed = lines[insertionIndex-1].trim();
           // If current line is an outdent (like a closing brace), use previous line's indent
           if (prevLineIndent.length > currentLineIndent.length && lines[insertionIndex].trim().length > 0) {
             indent = prevLineIndent;
+          } else if (prevLineTrimmed.endsWith('{') || prevLineTrimmed.endsWith('[') || prevLineTrimmed.endsWith('(')) {
+            // If previous line opens a block, indent by 4 spaces (common practice)
+            indent = prevLineIndent + '    ';
           } else {
             indent = currentLineIndent;
           }
@@ -239,7 +245,11 @@ export const applyDiff = (
     }
 
     const sourceLines = currentContent.split("\n");
-    const searchLines = block.search.split("\n");
+    // JS `split` behavior with trailing newlines is tricky.
+    // A search for a single blank line (`block.search`="\n") becomes `['', '']`,
+    // which is interpreted as two lines. We want `['']`.
+    const searchLines = block.search === '\n' ? [''] : block.search.split("\n");
+
     const match = findBestMatch(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
 
     if (match === null) {
