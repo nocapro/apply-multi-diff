@@ -1,0 +1,114 @@
+apply_diff_tests:
+  - name: constrained-search-with-end-line
+    description: Should use a line range to target a specific block, ignoring identical blocks outside the range
+    input:
+      original_content: |
+        function process() {
+            // some logic
+        }
+
+        function main() {
+            process(); // Should NOT be replaced
+        }
+
+        function test() {
+            process(); // Should be replaced
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            process();
+        =======
+            process(true);
+        >>>>>>> REPLACE
+      start_line: 9
+      end_line: 13
+    expected:
+      success: true
+      content: |
+        function process() {
+            // some logic
+        }
+
+        function main() {
+            process(); // Should NOT be replaced
+        }
+
+        function test() {
+            process(true); // Should be replaced
+        }
+  - name: insertion-into-empty-block
+    description: Should correctly infer indentation when inserting into an empty block
+    input:
+      original_content: |
+        function setup() {
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("setup");
+        >>>>>>> REPLACE
+      start_line: 2
+    expected:
+      success: true
+      content: |
+        function setup() {
+            console.log("setup");
+        }
+  - name: replace-across-blank-lines
+    description: Should correctly find and replace a block that contains blank lines
+    input:
+      original_content: |
+        // start
+        const A = 1;
+
+        const B = 2;
+        // end
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const A = 1;
+
+        const B = 2;
+        =======
+        const C = 3;
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        // start
+        const C = 3;
+        // end
+  - name: multi-block-insertion-and-replace
+    description: Should handle a mix of insertion and replacement in a single diff
+    input:
+      original_content: |
+        import React from 'react';
+
+        function MyComponent() {
+            return <div>Hello</div>;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        import { useState } from 'react';
+        >>>>>>> REPLACE
+        <<<<<<< SEARCH
+            return <div>Hello</div>;
+        =======
+            const [name, setName] = useState('World');
+            return <div>Hello, {name}</div>;
+        >>>>>>> REPLACE
+      start_line: 2 # For the insertion, and acts as search start for subsequent blocks
+    expected:
+      success: true
+      content: |
+        import React from 'react';
+        import { useState } from 'react';
+
+        function MyComponent() {
+            const [name, setName] = useState('World');
+            return <div>Hello, {name}</div>;
+        }
