@@ -1,0 +1,204 @@
+# Tests for the `getToolDescription` function
+tool_description_tests:
+  - name: description-contains-key-elements
+    description: Should generate a description that includes the CWD and format requirements
+    input:
+      cwd: "/mock/workspace"
+    expected_to_contain:
+      - "current working directory /mock/workspace"
+      - "<<<<<<< SEARCH"
+      - "======="
+      - ">>>>>>> REPLACE"
+      - "start_line"
+      - "end_line"
+
+# Tests for the `applyDiff` function
+apply_diff_tests:
+  - name: replace-exact-match
+    description: Should replace content that is an exact match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("hello")
+        }
+        =======
+        function hello() {
+            console.log("hello world")
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function hello() {
+            console.log("hello world")
+        }
+
+  - name: preserve-indentation-on-addition
+    description: Should preserve original indentation when adding new lines
+    input:
+      original_content: |
+        class Example {
+            getValue() {
+                return this.value
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            getValue() {
+                return this.value
+            }
+        =======
+            getValue() {
+                // Add logging
+                console.log("Getting value")
+                return this.value
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Example {
+            getValue() {
+                // Add logging
+                console.log("Getting value")
+                return this.value
+            }
+        }
+
+  - name: fail-on-no-match
+    description: Should fail gracefully if the search content does not match
+    input:
+      original_content: |
+        function hello() {
+            console.log("hello")
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function hello() {
+            console.log("wrong")
+        }
+        =======
+        function hello() {
+            console.log("hello world")
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+
+  - name: fail-on-invalid-format
+    description: Should fail gracefully if the diff format is invalid
+    input:
+      original_content: "function hello() {}"
+      diff_content: "This is not a valid format"
+    expected:
+      success: false
+      reason: "Invalid diff format"
+
+  - name: strip-line-numbers
+    description: Should strip leading line numbers from search and replace blocks
+    input:
+      original_content: "    return true;"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        2 |     return true;
+        =======
+        2 |     return false;
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: "    return false;"
+
+  - name: insertion-with-start-line
+    description: Should insert code at a specific line when the search block is empty
+    input:
+      original_content: |
+        function test() {
+            const x = 1;
+            return x;
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+            console.log("Adding log");
+        >>>>>>> REPLACE
+      start_line: 2
+      end_line: 2
+    expected:
+      success: true
+      content: |
+        function test() {
+            console.log("Adding log");
+            const x = 1;
+            return x;
+        }
+
+  - name: insertion-fail-without-line-number
+    description: Should fail an insertion if no start_line is provided
+    input:
+      original_content: "function test() {}"
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        =======
+        console.log("test");
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Insertion requires a start_line"
+
+  - name: deletion
+    description: Should delete code when the replace block is empty
+    input:
+      original_content: |
+        function test() {
+            // Comment to remove
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            // Comment to remove
+        =======
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        function test() {
+        }
+
+  - name: constrained-search-target-specific-duplicate
+    description: Should use line numbers to target a specific instance of duplicate code
+    input:
+      original_content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData();
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        processData();
+        =======
+        processData(config);
+        >>>>>>> REPLACE
+      start_line: 4
+      end_line: 4
+    expected:
+      success: true
+      content: |
+        // Instance 1
+        processData();
+
+        // Instance 2
+        processData(config);

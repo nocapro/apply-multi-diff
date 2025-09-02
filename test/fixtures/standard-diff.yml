@@ -1,0 +1,200 @@
+# Tests for the `getToolDescription` function
+tool_description_tests:
+  - name: description-contains-key-elements
+    description: Should generate a description that includes CWD and standard diff format markers
+    input:
+      cwd: "/mock/workspace"
+    expected_to_contain:
+      - "current working directory /mock/workspace"
+      - "--- a/path/to/original_file.ext"
+      - "+++ b/path/to/modified_file.ext"
+      - "@@ ... @@"
+
+# Tests for the `applyDiff` function
+apply_diff_tests:
+  - name: simple-modification
+    description: Should apply a simple modification, addition, and deletion correctly
+    input:
+      original_content: |
+        line1
+        line2
+        line3
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ ... @@
+         line1
+        +new line
+         line2
+        -line3
+        +modified line3
+    expected:
+      success: true
+      content: |
+        line1
+        new line
+        line2
+        modified line3
+
+  - name: multiple-hunks
+    description: Should correctly apply a diff with multiple, non-contiguous hunks
+    input:
+      original_content: |
+        line1
+        line2
+        line3
+        line4
+        line5
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ ... @@
+         line1
+        -line2
+        +modified line2
+        @@ ... @@
+         line4
+        -line5
+        +modified line5
+    expected:
+      success: true
+      content: |
+        line1
+        modified line2
+        line3
+        line4
+        modified line5
+
+  - name: correct-modification-with-similar-code
+    description: Should correctly modify the right section when similar code exists elsewhere
+    input:
+      original_content: |
+        function add(a, b) {
+          return a + b;
+        }
+
+        function multiply(a, b) {
+          return a + b;  // Bug here
+        }
+      diff_content: |
+        --- a/math.js
+        +++ b/math.js
+        @@ ... @@
+         function multiply(a, b) {
+        -  return a + b;  // Bug here
+        +  return a * b;
+         }
+    expected:
+      success: true
+      content: |
+        function add(a, b) {
+          return a + b;
+        }
+
+        function multiply(a, b) {
+          return a * b;
+        }
+  
+  - name: fallback-hunk-splitting-on-failure
+    description: Should split a failing hunk into smaller parts and apply them individually
+    input:
+      original_content: |
+        import { readFile } from 'fs';
+        import { Logger } from './logger';
+
+        const logger = new Logger();
+
+        async function processFile(filePath: string) {
+          try {
+            const data = await readFile(filePath, 'utf8');
+            logger.info('File read successfully');
+            return data;
+          } catch (error) {
+            logger.error('Failed to read file:', error);
+            throw error;
+          }
+        }
+      diff_content: |
+        --- a/file.ts
+        +++ b/file.ts
+        @@ -1,13 +1,13 @@
+         import { readFile } from 'fs';
+        -import { Logger } from './logger';
+        +import { Logger } from './utils/logger';
+         
+         const logger = new Logger(); // This context line is correct
+         
+         async function processFile(filePath: string) { // This context line is also correct
+           try {
+             const data = await readFile(filePath, 'utf8');
+        -    logger.info('File read successfully'); // This change is correct
+        +    logger.info(`File ${filePath} read successfully`); // This change is correct
+             return data;
+           } catch (error) {
+             logger.error('Failed to read file:', error);
+             throw error;
+           }
+         }
+    expected:
+      success: true
+      content: |
+        import { readFile } from 'fs';
+        import { Logger } from './utils/logger';
+
+        const logger = new Logger();
+
+        async function processFile(filePath:string) {
+          try {
+            const data = await readFile(filePath, 'utf8');
+            logger.info(`File ${filePath} read successfully`);
+            return data;
+          } catch (error) {
+            logger.error('Failed to read file:', error);
+            throw error;
+          }
+        }
+
+  - name: fail-on-non-existent-content
+    description: Should fail when the diff context does not match the original content
+    input:
+      original_content: |
+        line1
+        line2
+        line3
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ ... @@
+         line1
+        -nonexistent line
+        +new line
+         line3
+    expected:
+      success: false
+      reason: "Could not apply modification"
+
+  - name: fail-on-overlapping-hunks
+    description: Should fail to apply diffs that contain overlapping hunks
+    input:
+      original_content: |
+        line1
+        line2
+        line3
+        line4
+        line5
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ ... @@
+         line1
+         line2
+        -line3
+        +modified3
+        @@ ... @@
+         line2
+        -line3
+        -line4
+        +modified3and4
+    expected:
+      success: false
+      reason: "Hunks overlap"
