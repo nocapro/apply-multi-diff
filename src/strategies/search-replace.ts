@@ -118,7 +118,10 @@ const findBestMatch = (
   let minDistance = Infinity;
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
-  const maxDistanceThreshold = Math.floor(dedentedSearchText.length * 0.08); // 8% difference tolerance
+  const maxDistanceThreshold = Math.max(
+    5, // a minimum for short blocks
+    Math.floor(dedentedSearchText.length * 0.3) // 30% tolerance for fuzzy matching
+  );
 
   const searchStart = startLine - 1;
   const searchEnd = endLine ?? sourceLines.length;
@@ -136,6 +139,33 @@ const findBestMatch = (
   }
   if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
     return null;
+  }
+  
+  // Additional check: if a change was detected, reject if it looks like a semantic change inside a string literal
+  if (minDistance > 0) {
+    const slice = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length);
+    const sliceText = slice.join("\n");
+    const dedentedSliceText = dedent(sliceText);
+    
+    // Check if both contain string literals and they're different
+    const searchHasString = /["'].*["']/.test(dedentedSearchText);
+    const sliceHasString = /["'].*["']/.test(dedentedSliceText);
+    
+    if (searchHasString && sliceHasString) {
+      // Extract the string content to see if it's a semantic change
+      const searchStringMatch = dedentedSearchText.match(/["'](.*?)["']/);
+      const sliceStringMatch = dedentedSliceText.match(/["'](.*?)["']/);
+      
+      if (searchStringMatch && sliceStringMatch) {
+        const searchString = searchStringMatch[1];
+        const sliceString = sliceStringMatch[1];
+        
+        // If the strings are completely different (not just comment changes), reject
+        if (searchString !== sliceString && !searchString.includes(sliceString) && !sliceString.includes(searchString)) {
+          return null;
+        }
+      }
+    }
   }
   return { index: bestMatchIndex, distance: minDistance };
 };

@@ -160,35 +160,34 @@ apply_diff_tests:
       diff_content: |
         --- a/SimpleStore.sol
         +++ b/SimpleStore.sol
-        @@ -4,6 +4,10 @@
+        @@ -3,6 +3,10 @@
+         
          contract SimpleStore {
-             uint256 private _value;
- 
-+            function getValue() public view returns (uint256) {
-+                return _value;
-+            }
-+
-+            function setValue(uint256 value) public {
-+                _value = value;
-+            }
-+        }
-+    expected:
-+      success: true
-+      content: |
-+        // SPDX-License-Identifier: MIT
-+        pragma solidity ^0.8.20;
-+
-+        contract SimpleStore {
-+            uint256 private _value; // The value stored
-+
-+            function getValue() public view returns (uint256) {
-+                return _value;
-+            }
-+
-+            function setValue(uint256 value) public {
-+                _value = value;
-+            }
-+        }
+             uint256 private _value; // The value stored
+        +
+        +    function getValue() public view returns (uint256) {
+        +        return _value;
+        +    }
+         
+             function setValue(uint256 value) public {
+                 _value = value;
+    expected:
+      success: true
+      content: |
+        // SPDX-License-Identifier: MIT
+        pragma solidity ^0.8.20;
+
+        contract SimpleStore {
+            uint256 private _value; // The value stored
+
+            function getValue() public view returns (uint256) {
+                return _value;
+            }
+
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
 
   - name: fallback-hunk-splitting-on-failure
     description: Should split a failing hunk into smaller parts and apply them individually

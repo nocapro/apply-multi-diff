@@ -64,11 +64,11 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
         newLineCount: match[6] ? parseInt(match[6], 10) : 1,
         lines: [],
       };
-    } else if (
-      currentHunk &&
-      (line.startsWith(" ") || line.startsWith("+") || line.startsWith("-"))
-    ) {
-      currentHunk.lines.push(line);
+    } else if (currentHunk) {
+      // Handle context lines (space prefix), additions (+), deletions (-), and empty lines
+      if (line.startsWith(" ") || line.startsWith("+") || line.startsWith("-")) {
+        currentHunk.lines.push(line);
+      }
     }
   }
   if (currentHunk) hunks.push(currentHunk);

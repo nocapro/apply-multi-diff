@@ -49,6 +49,34 @@ export const logger = {
 };
 ```
 
+## File: src/constants.ts
+```typescript
+export const ERROR_CODES = {
+  // Standard Diff Errors
+  INVALID_DIFF_FORMAT: "INVALID_DIFF_FORMAT",
+  OVERLAPPING_HUNKS: "OVERLAPPING_HUNKS",
+  CONTEXT_MISMATCH: "CONTEXT_MISMATCH",
+
+  // Search/Replace Errors
+  INSERTION_REQUIRES_LINE_NUMBER: "INSERTION_REQUIRES_LINE_NUMBER",
+  INVALID_LINE_RANGE: "INVALID_LINE_RANGE",
+  SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
+  SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
+} as const;
+```
+
+## File: src/types.ts
+```typescript
+export type DiffError = {
+  code: string;
+  message: string;
+};
+
+export type ApplyDiffResult =
+  | { success: true; content: string }
+  | { success: false; error: DiffError };
+```
+
 ## File: src/utils/string.ts
 ```typescript
 export const levenshtein = (s1: string, s2: string): number => {
@@ -91,34 +119,17 @@ export const getCommonIndent = (text: string): string => {
     return shortest;
   }, getIndent(lines[0]));
 };
-```
 
-## File: src/constants.ts
-```typescript
-export const ERROR_CODES = {
-  // Standard Diff Errors
-  INVALID_DIFF_FORMAT: "INVALID_DIFF_FORMAT",
-  OVERLAPPING_HUNKS: "OVERLAPPING_HUNKS",
-  CONTEXT_MISMATCH: "CONTEXT_MISMATCH",
-
-  // Search/Replace Errors
-  INSERTION_REQUIRES_LINE_NUMBER: "INSERTION_REQUIRES_LINE_NUMBER",
-  INVALID_LINE_RANGE: "INVALID_LINE_RANGE",
-  SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
-  SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
-} as const;
-```
-
-## File: src/types.ts
-```typescript
-export type DiffError = {
-  code: string;
-  message: string;
+export const dedent = (text: string): string => {
+  const commonIndent = getCommonIndent(text);
+  if (!commonIndent) return text;
+  return text
+    .split("\n")
+    .map((line) =>
+      line.startsWith(commonIndent) ? line.substring(commonIndent.length) : line
+    )
+    .join("\n");
 };
-
-export type ApplyDiffResult =
-  | { success: true; content: string }
-  | { success: false; error: DiffError };
 ```
 
 ## File: src/index.ts
@@ -440,11 +451,14 @@ const parseHunks = (diffContent: string): Hunk[] | null => {
         newLineCount: match[6] ? parseInt(match[6], 10) : 1,
         lines: [],
       };
-    } else if (
-      currentHunk &&
-      (line.startsWith(" ") || line.startsWith("+") || line.startsWith("-"))
-    ) {
-      currentHunk.lines.push(line);
+    } else if (currentHunk) {
+      // Handle context lines (space prefix), additions (+), deletions (-), and empty lines
+      if (line.startsWith(" ") || line.startsWith("+") || line.startsWith("-")) {
+        currentHunk.lines.push(line);
+      } else if (line === "") {
+        // Empty lines in diff context should be treated as context lines
+        currentHunk.lines.push(" ");
+      }
     }
   }
   if (currentHunk) hunks.push(currentHunk);
@@ -787,13 +801,14 @@ apply_diff_tests:
          contract SimpleStore {
              uint256 private _value;
  
-+            function getValue() public view returns (uint256) {
-+                return _value;
-+            }
-+
-             function setValue(uint256 value) public {
-                 _value = value;
-             }
+         +   function getValue() public view returns (uint256) {
+        +        return _value;
+         +   }
+        +
+            function setValue(uint256 value) public {
+                _value = value;
+            }
+        }
     expected:
       success: true
       content: |
@@ -1247,7 +1262,7 @@ apply_diff_tests:
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
-import { getCommonIndent, getIndent, levenshtein } from "../utils/string";
+import { getCommonIndent, levenshtein, dedent } from "../utils/string";
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
@@ -1363,7 +1378,11 @@ const findBestMatch = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const searchText = searchLines.join("\n");
-  const maxDistanceThreshold = Math.floor(searchText.length * 0.08); // 8% difference tolerance
+  const dedentedSearchText = dedent(searchText);
+  const maxDistanceThreshold = Math.max(
+    5, // a minimum for short blocks
+    Math.floor(dedentedSearchText.length * 0.3) // 30% tolerance for fuzzy matching
+  );
 
   const searchStart = startLine - 1;
   const searchEnd = endLine ?? sourceLines.length;
@@ -1371,16 +1390,43 @@ const findBestMatch = (
   for (let i = searchStart; i <= searchEnd - searchLines.length; i++) {
     const slice = sourceLines.slice(i, i + searchLines.length);
     const sliceText = slice.join("\n");
-    const distance = levenshtein(searchText, sliceText);
+    const dedentedSliceText = dedent(sliceText);
+    const distance = levenshtein(dedentedSearchText, dedentedSliceText);
     if (distance < minDistance) {
       minDistance = distance;
       bestMatchIndex = i;
     }
     if (distance === 0) break;
   }
-  
   if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
     return null;
+  }
+  
+  // Additional check: if a change was detected, reject if it looks like a semantic change inside a string literal
+  if (minDistance > 0) {
+    const slice = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length);
+    const sliceText = slice.join("\n");
+    const dedentedSliceText = dedent(sliceText);
+    
+    // Check if both contain string literals and they're different
+    const searchHasString = /["'].*["']/.test(dedentedSearchText);
+    const sliceHasString = /["'].*["']/.test(dedentedSliceText);
+    
+    if (searchHasString && sliceHasString) {
+      // Extract the string content to see if it's a semantic change
+      const searchStringMatch = dedentedSearchText.match(/["'](.*?)["']/);
+      const sliceStringMatch = dedentedSliceText.match(/["'](.*?)["']/);
+      
+      if (searchStringMatch && sliceStringMatch) {
+        const searchString = searchStringMatch[1];
+        const sliceString = sliceStringMatch[1];
+        
+        // If the strings are completely different (not just comment changes), reject
+        if (searchString !== sliceString && !searchString.includes(sliceString) && !sliceString.includes(searchString)) {
+          return null;
+        }
+      }
+    }
   }
   return { index: bestMatchIndex, distance: minDistance };
 };
