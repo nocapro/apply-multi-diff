@@ -11,7 +11,7 @@
     "preferredStrategy": "auto"
   },
   "patch": {
-    "approvalMode": "auto",
+    "approvalMode": "manual",
     "approvalOnErrorCount": 0,
     "linter": "",
     "preCommand": "",

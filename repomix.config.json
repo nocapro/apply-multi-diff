@@ -32,6 +32,7 @@
       ".gitignore",
       "bun.lockb",
       "repomix.config.json",
+      "relay.config.json",
       "README.md",
       ".relay",
       "docs",

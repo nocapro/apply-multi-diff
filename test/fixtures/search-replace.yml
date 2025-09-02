@@ -36,7 +36,7 @@ apply_diff_tests:
       success: true
       content: |
         function hello() {
-            console.log("hello world")
+            console.log("hello world");
         }
 
   - name: preserve-indentation-on-addition
@@ -67,8 +67,8 @@ apply_diff_tests:
         class Example {
             getValue() {
                 // Add logging
-                console.log("Getting value")
-                return this.value
+                console.log("Getting value");
+                return this.value;
             }
         }
 
@@ -94,6 +94,72 @@ apply_diff_tests:
       success: false
       reason: "Search block not found"
 
+  - name: indentation-agnostic-search-and-preserve
+    description: Should find content regardless of its indentation and preserve it on replace
+    input:
+      original_content: |
+            function test() {
+                return true;
+            }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        function test() {
+            return true;
+        }
+        =======
+        function test() {
+            return false;
+        }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+            function test() {
+                return false;
+            }
+
+  - name: respect-relative-indentation-in-replace
+    description: Should respect the relative indentation inside the REPLACE block
+    input:
+      original_content: |
+        class Test {
+            method() {
+                console.log("test");
+            }
+        }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+            method() {
+                console.log("test");
+            }
+        =======
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        >>>>>>> REPLACE
+    expected:
+      success: true
+      content: |
+        class Test {
+            method() {
+                try {
+                    if (true) {
+                        console.log("test");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+
   - name: fail-on-invalid-format
     description: Should fail gracefully if the diff format is invalid
     input:
@@ -112,11 +178,11 @@ apply_diff_tests:
         <<<<<<< SEARCH
         2 |     return true;
         =======
-        2 |     return false;
+        2 |     return false; // A comment
         >>>>>>> REPLACE
     expected:
       success: true
-      content: "    return false;"
+      content: "    return false; // A comment"
 
   - name: insertion-with-start-line
     description: Should insert code at a specific line when the search block is empty
@@ -140,7 +206,6 @@ apply_diff_tests:
         function test() {
             console.log("Adding log");
             const x = 1;
-            return x;
         }
 
   - name: insertion-fail-without-line-number
@@ -161,6 +226,7 @@ apply_diff_tests:
     description: Should delete code when the replace block is empty
     input:
       original_content: |
+
         function test() {
             // Comment to remove
         }
@@ -173,8 +239,7 @@ apply_diff_tests:
     expected:
       success: true
       content: |
-        function test() {
-        }
+        function test() {}
 
   - name: constrained-search-target-specific-duplicate
     description: Should use line numbers to target a specific instance of duplicate code

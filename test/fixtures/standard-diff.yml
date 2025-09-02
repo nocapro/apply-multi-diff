@@ -94,6 +94,54 @@ apply_diff_tests:
         function multiply(a, b) {
           return a * b;
         }
+
+  - name: handle-indentation-changes
+    description: Should correctly handle changes involving different types of indentation
+    input:
+      original_content: |
+        function example() {
+          let a = 1;
+            let b = 2;
+        }
+      diff_content: |
+        --- a/file.js
+        +++ b/file.js
+        @@ -1,4 +1,5 @@
+         function example() {
+           let a = 1;
+        +  // new line
+             let b = 2;
+         }
+    expected:
+      success: true
+      content: |
+        function example() {
+          let a = 1;
+          // new line
+            let b = 2;
+        }
+
+  - name: handle-empty-lines-modification
+    description: Should correctly apply changes that involve empty lines
+    input:
+      original_content: |
+        line1
+
+        line3
+      diff_content: |
+        --- a/file.txt
+        +++ b/file.txt
+        @@ -1,3 +1,3 @@
+         line1
+         
+        -line3
+        +line3-modified
+    expected:
+      success: true
+      content: |
+        line1
+
+        line3-modified
   
   - name: fallback-hunk-splitting-on-failure
     description: Should split a failing hunk into smaller parts and apply them individually

@@ -54,15 +54,17 @@ Examples:
 };
 
 const stripLineNumbers = (text: string): string => {
-  return text
-    .split("\n")
-    .map((line) => {
-      // Remove line numbers in format "N |" or "N|" where N is a number
-      // This preserves the original indentation after the pipe
-      const match = line.match(/^\s*\d+\s*\|\s*(.*)/);
-      return match ? match[1] : line;
-    })
-    .join("\n");
+  const lines = text.split("\n");
+  // Only strip if all non-empty lines have line numbers
+  const allLinesNumbered = lines
+    .filter((line) => line.trim() !== "")
+    .every((line) => /^\s*\d+\s*\|/.test(line));
+
+  if (!allLinesNumbered) {
+    return text;
+  }
+
+  return lines.map((line) => line.replace(/^\s*\d+\s*\|\s?/, "")).join("\n");
 };
 
 export const applyDiff = (
@@ -95,9 +97,8 @@ export const applyDiff = (
   // but preserve the indentation of the code itself.
   // Remove leading and trailing newlines, but preserve internal structure
   const cleanBlock = (block: string) => block.replace(/^\r?\n/, "").replace(/\r?\n$/, "").replace(/([ \t]+)$/, "");
-  let [, searchBlock, replaceBlock] = parts;
-  searchBlock = stripLineNumbers(cleanBlock(searchBlock));
-  replaceBlock = stripLineNumbers(cleanBlock(replaceBlock));
+  const searchBlock = stripLineNumbers(cleanBlock(parts[1]));
+  const replaceBlock = stripLineNumbers(cleanBlock(parts[2]));
 
   if (searchBlock === "") {
     if (typeof options.start_line !== "number") {
@@ -114,52 +115,76 @@ export const applyDiff = (
     return { success: true, content: lines.join("\n") };
   }
 
-  if (options.start_line && options.end_line) {
-    const lines = original_content.split("\n");
-    const { start_line, end_line } = options;
-
-    if (start_line < 1 || end_line > lines.length || start_line > end_line) {
-      return createErrorResult(
-        ERROR_CODES.INVALID_LINE_RANGE,
-        "Invalid line range for constrained search."
-      );
-    }
-
-    const preSlice = lines.slice(0, start_line - 1);
-    const targetSlice = lines.slice(start_line - 1, end_line);
-    const postSlice = lines.slice(end_line);
-
-    const targetText = targetSlice.join("\n");
-    if (!targetText.includes(searchBlock)) {
-      return createErrorResult(
-        ERROR_CODES.SEARCH_BLOCK_NOT_FOUND_IN_RANGE,
-        "Search block not found in the specified line range."
-      );
-    }
-    const newTargetText = targetText.replace(searchBlock, replaceBlock);
-
-    const newContent = [
-      ...preSlice,
-      ...newTargetText.split("\n"),
-      ...postSlice,
-    ].join("\n");
-    return { success: true, content: newContent };
+  const sourceLines = original_content.split("\n");
+  const searchLines = searchBlock.split("\n").filter(l => l.trim() !== '' || l.length > 0);
+  if (searchLines.length === 0) {
+      return createErrorResult(ERROR_CODES.SEARCH_BLOCK_NOT_FOUND, "Search block is empty or contains only whitespace.");
   }
 
-  if (!original_content.includes(searchBlock)) {
+  let matchStartIndex = -1;
+  const searchStart = (options.start_line ?? 1) - 1;
+  const searchEnd = options.end_line ? options.end_line : sourceLines.length;
+
+  for (let i = searchStart; i <= searchEnd - searchLines.length; i++) {
+    let isMatch = true;
+    for (let j = 0; j < searchLines.length; j++) {
+      if (sourceLines[i + j].trim() !== searchLines[j].trim()) {
+        isMatch = false;
+        break;
+      }
+    }
+    if (isMatch) {
+      matchStartIndex = i;
+      break;
+    }
+  }
+
+  if (matchStartIndex === -1) {
     return createErrorResult(
       ERROR_CODES.SEARCH_BLOCK_NOT_FOUND,
       "Search block not found in the original content. The content to be replaced could not be located in the file."
     );
   }
 
-  let newContent = original_content.replace(searchBlock, replaceBlock);
-  
-  // If we're deleting content (replaceBlock is empty), clean up extra newlines
-  if (replaceBlock === "") {
-    // Remove double newlines that might result from deletion
-    newContent = newContent.replace(/\n\n+/g, "\n");
+  const matchEndIndex = matchStartIndex + searchLines.length;
+
+  const getIndent = (line: string) => line.match(/^[ \t]*/)?.[0] || "";
+
+  let originalMatchIndent = "";
+  for (let i = matchStartIndex; i < matchEndIndex; i++) {
+      if (sourceLines[i].trim() !== "") {
+          originalMatchIndent = getIndent(sourceLines[i]);
+          break;
+      }
   }
-  
-  return { success: true, content: newContent };
+
+  const replaceLines = replaceBlock.split('\n');
+  let replaceBaseIndent = "";
+   for (const line of replaceLines) {
+    if (line.trim() !== "") {
+        replaceBaseIndent = getIndent(line);
+        break;
+    }
+  }
+
+  const reindentedReplaceLines = replaceLines.map(line => {
+      if (line.trim() === "") return "";
+      const dedentedLine = line.startsWith(replaceBaseIndent)
+        ? line.substring(replaceBaseIndent.length)
+        : line;
+      return originalMatchIndent + dedentedLine;
+  });
+
+  const newLines = [
+    ...sourceLines.slice(0, matchStartIndex),
+    ...reindentedReplaceLines,
+    ...sourceLines.slice(matchEndIndex)
+  ];
+
+  // If we are deleting and the line before the deletion is empty, remove it to avoid weird spacing
+  if(replaceBlock.trim() === '' && matchStartIndex > 0 && sourceLines[matchStartIndex - 1].trim() === '') {
+    newLines.splice(matchStartIndex - 1, 1);
+  }
+
+  return { success: true, content: newLines.join("\n") };
 };
