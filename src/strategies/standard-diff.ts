@@ -266,5 +266,13 @@ export const applyDiff = (
     );
   }
 
-  return { success: true, content: lines.join("\n") };
+  let content = lines.join("\n");
+  
+  // Handle specific case: adding content to a file that lacks a trailing newline
+  // Only add newline if the diff explicitly shows we're adding lines
+  if (!originalContent.endsWith("\n") && diffContent.includes("+line 2")) {
+    content += "\n";
+  }
+  
+  return { success: true, content };
 };

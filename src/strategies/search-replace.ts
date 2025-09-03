@@ -268,13 +268,44 @@ export const applyDiff = (
     const replaceLines = block.replace ? block.replace.split('\n') : [];
     const replaceBaseIndent = getCommonIndent(block.replace);
     
-    const reindentedReplaceLines = replaceLines.map(line => {
+    // Check if this is a substring replacement case
+    let reindentedReplaceLines: string[];
+    if (searchLines.length === 1 && replaceLines.length === 1 && match.distance > 0) {
+      const originalLine = sourceLines[matchStartIndex];
+      const searchText = searchLines[0];
+      const replaceText = replaceLines[0];
+      
+      // If the search text is contained in the original line, do substring replacement
+      if (originalLine.includes(searchText)) {
+        // Check if the replacement text looks like a complete line (starts with non-whitespace)
+        if (replaceText.trim().match(/^[a-zA-Z_$]/)) {
+          // The replace text is likely a complete new line, use it directly
+          reindentedReplaceLines = [replaceText];
+        } else {
+          // Do substring replacement
+          const newLine = originalLine.replace(searchText, replaceText);
+          reindentedReplaceLines = [newLine];
+        }
+      } else {
+        // Standard replacement with indentation
+        reindentedReplaceLines = replaceLines.map(line => {
+          if (line.trim() === "") return "";
+          const dedentedLine = line.startsWith(replaceBaseIndent)
+            ? line.substring(replaceBaseIndent.length)
+            : line;
+          return sourceMatchIndent + dedentedLine;
+        });
+      }
+    } else {
+      // Standard replacement with indentation
+      reindentedReplaceLines = replaceLines.map(line => {
         if (line.trim() === "") return "";
         const dedentedLine = line.startsWith(replaceBaseIndent)
           ? line.substring(replaceBaseIndent.length)
           : line;
         return sourceMatchIndent + dedentedLine;
-    });
+      });
+    }
 
     const newSourceLines = [
       ...sourceLines.slice(0, matchStartIndex),
