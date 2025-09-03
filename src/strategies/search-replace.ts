@@ -277,14 +277,38 @@ export const applyDiff = (
       
       // If the search text is contained in the original line, do substring replacement
       if (originalLine.includes(searchText)) {
-        // Check if the replacement text looks like a complete line (starts with non-whitespace)
-        if (replaceText.trim().match(/^[a-zA-Z_$]/)) {
-          // The replace text is likely a complete new line, use it directly
+        // Check if the replacement text looks like a complete line by checking if it contains
+        // the non-search parts of the original line
+        const nonSearchParts = originalLine.replace(searchText, '').trim();
+        if (nonSearchParts.length > 0 && replaceText.includes(nonSearchParts)) {
+          // The replace text is a complete new line, use it directly
           reindentedReplaceLines = [replaceText];
         } else {
           // Do substring replacement
           const newLine = originalLine.replace(searchText, replaceText);
           reindentedReplaceLines = [newLine];
+        }
+      } else if (match.distance > 0) {
+        // Fuzzy match case - try to preserve trailing comments
+        const originalTrimmed = originalLine.trim();
+        
+        // Look for trailing comments after semicolon
+        const commentMatch = originalTrimmed.match(/;\s*(\/\/.*|\/\*.*\*\/)$/);
+        
+        if (commentMatch) {
+          const trailingComment = commentMatch[1];
+          const indent = originalLine.match(/^[ \t]*/)?.[0] || "";
+          const newLine = indent + replaceText.trim() + ' ' + trailingComment;
+          reindentedReplaceLines = [newLine];
+        } else {
+          // Standard replacement with indentation
+          reindentedReplaceLines = replaceLines.map(line => {
+            if (line.trim() === "") return "";
+            const dedentedLine = line.startsWith(replaceBaseIndent)
+              ? line.substring(replaceBaseIndent.length)
+              : line;
+            return sourceMatchIndent + dedentedLine;
+          });
         }
       } else {
         // Standard replacement with indentation
