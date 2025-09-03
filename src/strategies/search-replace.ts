@@ -75,8 +75,8 @@ export const _parseDiff_for_debug = (diffContent: string): SearchReplaceBlock[] 
     
     if (parts.length >= 4) {
       blocks.push({
-        search: stripLineNumbers(cleanBlock(parts[1])),
-        replace: stripLineNumbers(cleanBlock(parts[2])),
+        search: stripLineNumbers(cleanBlock(parts[1] ?? '')),
+        replace: stripLineNumbers(cleanBlock(parts[2] ?? '')),
       });
     }
     content = content.substring(replaceEnd);
@@ -97,8 +97,6 @@ export const _findBestMatch_for_debug = (
   let minDistance = Infinity;
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
-  // More tolerant threshold for substring-like matches and trailing comments.
-  const maxDistanceThreshold = Math.max(20, Math.floor(dedentedSearchText.length * 0.7));
 
   const searchStart = startLine - 1;
   const searchEnd = endLine ?? sourceLines.length;
@@ -114,11 +112,17 @@ export const _findBestMatch_for_debug = (
     }
     if (distance === 0) break;
   }
-  if (bestMatchIndex === -1 || minDistance > maxDistanceThreshold) {
+  if (bestMatchIndex === -1) {
     return null;
   }
   
-  // Additional check: if a change was detected, reject if it looks like a semantic change inside a string literal
+  const bestMatchSliceText = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length).join('\n');
+  const dedentedBestMatchSliceText = dedent(bestMatchSliceText);
+  // Threshold is based on the shorter of the search/slice text to be more robust against large length differences.
+  const maxDistanceThreshold = Math.max(20, Math.floor(Math.min(dedentedSearchText.length, dedentedBestMatchSliceText.length) * 0.7));
+  if (minDistance > maxDistanceThreshold) {
+    return null;
+  }
   if (minDistance > 0) {
     const slice = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length);
     const sliceText = slice.join("\n");
@@ -133,11 +137,11 @@ export const _findBestMatch_for_debug = (
       const searchStringMatch = dedentedSearchText.match(/["'](.*?)["']/);
       const sliceStringMatch = dedentedSliceText.match(/["'](.*?)["']/);
       
-      if (searchStringMatch && sliceStringMatch) {
+      if (searchStringMatch && sliceStringMatch && typeof searchStringMatch[1] === 'string' && typeof sliceStringMatch[1] === 'string') {
         const searchString = searchStringMatch[1];
         const sliceString = sliceStringMatch[1];
 
-        if (levenshtein(searchString, sliceString) > searchString.length * 0.5) {
+        if (levenshtein(searchString, sliceString) > (searchString.length * 0.5)) {
           return null;
         }
       }
@@ -182,12 +186,14 @@ export const applyDiff = (
       // Infer indentation from the insertion line or surrounding lines
       let indent = "";
       if (insertionIndex < lines.length) {
-        const currentLineIndent = lines[insertionIndex].match(/^[ \t]*/)?.[0] || "";
+        const currentLine = lines[insertionIndex];
+        const currentLineIndent = currentLine?.match(/^[ \t]*/)?.[0] || "";
         if (insertionIndex > 0) {
-          const prevLineIndent = lines[insertionIndex - 1].match(/^[ \t]*/)?.[0] || "";
-          const prevLineTrimmed = lines[insertionIndex-1].trim();
+          const prevLine = lines[insertionIndex - 1];
+          const prevLineIndent = prevLine?.match(/^[ \t]*/)?.[0] || "";
+          const prevLineTrimmed = prevLine?.trim() ?? '';
           // If current line is an outdent (like a closing brace), use previous line's indent
-          if (prevLineIndent.length > currentLineIndent.length && lines[insertionIndex].trim().length > 0) {
+          if (prevLineIndent.length > currentLineIndent.length && (currentLine?.trim()?.length ?? 0) > 0) {
             indent = prevLineIndent;
           } else if (prevLineTrimmed.endsWith('{') || prevLineTrimmed.endsWith('[') || prevLineTrimmed.endsWith('(')) {
             // If previous line opens a block, indent by 4 spaces (common practice)
@@ -200,7 +206,8 @@ export const applyDiff = (
         }
       } else if (lines.length > 0) {
         // If inserting at the very end, use indent of last line
-        indent = lines[lines.length - 1].match(/^[ \t]*/)?.[0] || "";
+        const lastLine = lines[lines.length - 1];
+        indent = lastLine?.match(/^[ \t]*/)?.[0] || "";
       }
 
       const replaceLines = block.replace.split('\n');
@@ -247,11 +254,11 @@ export const applyDiff = (
     let reindentedReplaceLines: string[];
     if (searchLines.length === 1 && replaceLines.length === 1 && match.distance > 0) {
       const originalLine = sourceLines[matchStartIndex];
-      const searchText = searchLines[0];
-      const replaceText = replaceLines[0];
+      const searchText = searchLines[0] ?? '';
+      const replaceText = replaceLines[0] ?? '';
       
       // If the search text is contained in the original line, do substring replacement
-      if (originalLine.includes(searchText)) {
+      if (originalLine?.includes(searchText)) {
         // Check if the replacement text looks like a complete line by checking if it contains
         // the non-search parts of the original line
         const nonSearchParts = originalLine.replace(searchText, '').trim();
@@ -265,14 +272,14 @@ export const applyDiff = (
         }
       } else if (match.distance > 0) {
         // Fuzzy match case - try to preserve trailing comments
-        const originalTrimmed = originalLine.trim();
+        const originalTrimmed = originalLine?.trim() ?? '';
         
         // Look for trailing comments after semicolon
         const commentMatch = originalTrimmed.match(/;\s*(\/\/.*|\/\*.*\*\/)$/);
         
         if (commentMatch) {
-          const trailingComment = commentMatch[1];
-          const indent = originalLine.match(/^[ \t]*/)?.[0] || "";
+          const trailingComment = commentMatch[1] ?? '';
+          const indent = originalLine?.match(/^[ \t]*/)?.[0] || "";
           const newLine = indent + replaceText.trim() + ' ' + trailingComment;
           reindentedReplaceLines = [newLine];
         } else {

@@ -55,9 +55,9 @@ export const _parseHunks_for_debug = (diffContent: string): Hunk[] | null => {
     if (match) {
       if (currentHunk) hunks.push(currentHunk);
       currentHunk = {
-        originalStartLine: parseInt(match[1], 10),
+        originalStartLine: parseInt(match[1] ?? '0', 10),
         originalLineCount: match[3] ? parseInt(match[3], 10) : 1,
-        newStartLine: parseInt(match[4], 10),
+        newStartLine: parseInt(match[4] ?? '0', 10),
         newLineCount: match[6] ? parseInt(match[6], 10) : 1,
         lines: [],
       };
@@ -100,16 +100,23 @@ const applyHunkAt = (
     if (foundIdx !== -1) {
       // Found the line. Preserve drift (lines between sourceIdx and foundIdx).
       for (let i = sourceIdx; i < foundIdx; i++) {
-        result.push(sourceLines[i]);
+        const line = sourceLines[i];
+        if (line !== undefined) {
+          result.push(line);
+        }
       }
       if (hunkLine.startsWith(" ")) {
-        result.push(sourceLines[foundIdx]);
+        const line = sourceLines[foundIdx];
+        if (line !== undefined) {
+          result.push(line);
+        }
       }
       sourceIdx = foundIdx + 1;
     } else {
       // Not found nearby (fuzzy match case). Assume current line corresponds.
       if (hunkLine.startsWith(" ")) {
-        if (sourceIdx < sourceLines.length) result.push(sourceLines[sourceIdx]);
+        const line = sourceLines[sourceIdx];
+        if (line !== undefined) result.push(line);
       }
       sourceIdx++;
     }
@@ -178,12 +185,12 @@ export const _splitHunk_for_debug = (hunk: Hunk): Hunk[] => {
   let i = 0;
   while (i < hunk.lines.length) {
     // Skip leading context
-    while (i < hunk.lines.length && hunk.lines[i].startsWith(" ")) i++;
+    while (i < hunk.lines.length && hunk.lines[i]?.startsWith(" ")) i++;
     if (i === hunk.lines.length) break;
 
     const changeBlockStart = i;
     // Find end of this change block
-    while (i < hunk.lines.length && !hunk.lines[i].startsWith(" ")) i++;
+    while (i < hunk.lines.length && !hunk.lines[i]?.startsWith(" ")) i++;
     const changeBlockEnd = i;
 
     const subHunkStart = Math.max(0, changeBlockStart - context);
@@ -215,8 +222,9 @@ export const applyDiff = (
   for (let i = 0; i < hunks.length; i++) {
     for (let j = i + 1; j < hunks.length; j++) {
       const h1 = hunks[i];
-      const h1End = h1.originalStartLine + h1.originalLineCount;
       const h2 = hunks[j];
+      if (!h1 || !h2) continue;
+      const h1End = h1.originalStartLine + h1.originalLineCount;
       if (Math.max(h1.originalStartLine, h2.originalStartLine) < Math.min(h1End, h2.originalStartLine + h2.originalLineCount)) {
         return createErrorResult(ERROR_CODES.OVERLAPPING_HUNKS, "Hunks overlap, which is not supported.");
       }

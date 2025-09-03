@@ -9,14 +9,14 @@ export const levenshtein = (s1: string, s2: string): number => {
   for (let i = 0; i < s1.length; i++) {
     let currentRow = [i + 1];
     for (let j = 0; j < s2.length; j++) {
-      const insertions = previousRow[j + 1] + 1;
-      const deletions = currentRow[j] + 1;
-      const substitutions = previousRow[j] + (s1[i] === s2[j] ? 0 : 1);
+      const insertions = (previousRow[j + 1] ?? 0) + 1;
+      const deletions = (currentRow[j] ?? 0) + 1;
+      const substitutions = (previousRow[j] ?? 0) + (s1[i] === s2[j] ? 0 : 1);
       currentRow.push(Math.min(insertions, deletions, substitutions));
     }
     previousRow = currentRow;
   }
-  return previousRow[previousRow.length - 1];
+  return previousRow[previousRow.length - 1] ?? 0;
 };
 
 export const getIndent = (line: string): string =>
@@ -36,7 +36,7 @@ export const getCommonIndent = (text: string): string => {
       return currentIndent;
     }
     return shortest;
-  }, getIndent(lines[0]));
+  }, getIndent(lines[0] ?? ''));
 };
 
 export const dedent = (text: string): string => {
