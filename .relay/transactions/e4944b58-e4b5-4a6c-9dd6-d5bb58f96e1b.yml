@@ -1,0 +1,174 @@
+uuid: e4944b58-e4b5-4a6c-9dd6-d5bb58f96e1b
+projectId: diff-apply
+createdAt: '2025-09-03T02:18:09.710Z'
+linesAdded: 20
+linesRemoved: 6
+gitCommitMsg: 'refactor: add tsup config and refine tsconfig for build'
+promptSummary: >-
+  You pointed out that I forgot to add tsup.config.ts and update tsconfig.json
+  for publishing.
+reasoning:
+  - >-
+    good catch. relying on cli flags is brittle. a proper `tsup.config.ts` and a
+    tightened `tsconfig.json` are in order.
+  - first, the `tsup` config. this keeps the build definition in one place.
+  - >-
+    next, i'll update `tsconfig.json` to focus on the `src` directory for the
+    library build, excluding test and debug files. removing `noEmit` is also
+    correct for a buildable project.
+  - >-
+    finally, i'll simplify the build script in `package.json` to use the new
+    `tsup` config.
+operations:
+  - type: write
+    path: tsup.config.ts
+    content: |-
+      import { defineConfig } from 'tsup';
+
+      export default defineConfig({
+        entry: ['src/index.ts'],
+        format: ['cjs', 'esm'],
+        dts: true,
+        splitting: false,
+        sourcemap: true,
+        clean: true,
+      });
+    patchStrategy: replace
+  - type: write
+    path: tsconfig.json
+    content: |-
+      --- tsconfig.json
+      +++ tsconfig.json
+      @@ -1,15 +1,19 @@
+       {
+         "include": [
+      -    "test",
+      -    "src",
+      -    "debug.ts"
+      +    "src"
+      +  ],
+      +  "exclude": [
+      +    "node_modules",
+      +    "dist",
+      +    "test",
+      +    "debug.ts"
+         ],
+         "compilerOptions": {
+           "lib": ["ESNext"],
+           "module": "esnext",
+           "target": "esnext",
+           "moduleResolution": "bundler",
+           "moduleDetection": "force",
+           "allowImportingTsExtensions": true,
+      -    "noEmit": true,
+      -    "composite": true,
+           "strict": true,
+           "downlevelIteration": true,
+           "skipLibCheck": true,
+    patchStrategy: new-unified
+  - type: write
+    path: package.json
+    content: |-
+      --- package.json
+      +++ package.json
+      @@ -12,7 +12,7 @@
+           "dist"
+         ],
+         "scripts": {
+      -    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+      +    "build": "tsup",
+           "test": "bun test"
+         },
+         "repository": {
+      @@ -34,7 +34,8 @@
+           "@types/js-yaml": "^4.0.9",
+           "bun-types": "latest",
+           "js-yaml": "^4.1.0",
+      -    "tsup": "^8.0.2",
+      -    "typescript": "^5.4.5"
+      +    "tsup": "^8.0.2"
+      +  },
+      +  "peerDependencies": {
+      +    "typescript": "^5.0.0"
+         }
+       }
+    patchStrategy: new-unified
+snapshot:
+  tsup.config.ts: null
+  tsconfig.json: |
+    {
+      "include": [
+        "test",
+        "src",
+        "debug.ts"
+      ],
+      "compilerOptions": {
+        "lib": ["ESNext"],
+        "module": "esnext",
+        "target": "esnext",
+        "moduleResolution": "bundler",
+        "moduleDetection": "force",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "composite": true,
+        "strict": true,
+        "downlevelIteration": true,
+        "skipLibCheck": true,
+        "jsx": "preserve",
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowJs": true,
+        "types": [
+          "bun-types" // add Bun global
+        ]
+      }
+    }
+  package.json: |-
+    {
+      "name": "apply-multi-diff",
+      "version": "0.1.0",
+      "description": "A zero-dependency library to apply unified diffs and search-and-replace patches, with support for fuzzy matching.",
+      "type": "module",
+      "main": "./dist/index.js",
+      "module": "./dist/index.mjs",
+      "types": "./dist/index.d.ts",
+      "exports": {
+        ".": {
+          "import": "./dist/index.mjs",
+          "require": "./dist/index.js",
+          "types": "./dist/index.d.ts"
+        }
+      },
+      "files": [
+        "dist"
+      ],
+      "scripts": {
+        "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+        "test": "bun test"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/nocapro/apply-multi-diff.git"
+      },
+      "keywords": [
+        "diff",
+        "patch",
+        "apply",
+        "unified-diff",
+        "search-replace",
+        "fuzzy"
+      ],
+      "license": "MIT",
+      "bugs": {
+        "url": "https://github.com/nocapro/apply-multi-diff/issues"
+      },
+      "homepage": "https://github.com/nocapro/apply-multi-diff#readme",
+      "devDependencies": {
+        "@types/js-yaml": "^4.0.9",
+        "bun-types": "latest",
+        "js-yaml": "^4.1.0",
+        "tsup": "^8.0.2",
+        "typescript": "^5.4.5"
+      }
+    }
+approved: true

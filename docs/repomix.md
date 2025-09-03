@@ -35,14 +35,13 @@ test/
     standard-diff.test.ts
 debug.ts
 package.json
-README.md
 tsconfig.json
 ```
 
 # Files
 
 ## File: src/utils/error.ts
-````typescript
+```typescript
 import type { ApplyDiffResult } from "../types";
 
 export const createErrorResult = (
@@ -54,20 +53,20 @@ export const createErrorResult = (
     error: { code, message },
   };
 };
-````
+```
 
 ## File: src/utils/logger.ts
-````typescript
+```typescript
 // Placeholder for a more robust logger
 export const logger = {
   info: (...args: unknown[]) => console.log(...args),
   warn: (...args: unknown[]) => console.warn(...args),
   error: (...args: unknown[]) => console.error(...args),
 };
-````
+```
 
 ## File: src/constants.ts
-````typescript
+```typescript
 export const ERROR_CODES = {
   // Standard Diff Errors
   INVALID_DIFF_FORMAT: "INVALID_DIFF_FORMAT",
@@ -80,10 +79,10 @@ export const ERROR_CODES = {
   SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
   SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
 } as const;
-````
+```
 
 ## File: src/types.ts
-````typescript
+```typescript
 export type DiffError = {
   code: string;
   message: string;
@@ -92,10 +91,10 @@ export type DiffError = {
 export type ApplyDiffResult =
   | { success: true; content: string }
   | { success: false; error: DiffError };
-````
+```
 
 ## File: test/fixtures/search-replace/complex-scenarios.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: constrained-search-with-end-line
     description: Should use a line range to target a specific block, ignoring identical blocks outside the range
@@ -210,10 +209,10 @@ apply_diff_tests:
             const [name, setName] = useState('World');
             return <div>Hello, {name}</div>;
         }
-````
+```
 
 ## File: test/fixtures/search-replace/description.yml
-````yaml
+```yaml
 # Tests for the `getToolDescription` function
 tool_description_tests:
   - name: description-contains-key-elements
@@ -227,10 +226,10 @@ tool_description_tests:
       - ">>>>>>> REPLACE"
       - "start_line"
       - "end_line"
-````
+```
 
 ## File: test/fixtures/search-replace/edge-cases.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: strip-line-numbers
     description: Should strip leading line numbers from search and replace blocks
@@ -354,10 +353,10 @@ apply_diff_tests:
     expected:
       success: true
       content: "const greeting = 'こんにちは世界';"
-````
+```
 
 ## File: test/fixtures/search-replace/failure.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: fail-on-no-match
     description: Should fail gracefully if the search content does not match
@@ -416,10 +415,10 @@ apply_diff_tests:
     expected:
       success: false
       reason: "Search block not found"
-````
+```
 
 ## File: test/fixtures/search-replace/fuzzy.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: fuzzy-match-on-minor-difference
     description: Should find and replace content that is slightly different from the search block
@@ -481,10 +480,10 @@ apply_diff_tests:
       success: true
       content: |
         Sentry.captureMessage("Failed to connect to database!"); // User added exclamation
-````
+```
 
 ## File: test/fixtures/search-replace/indentation.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: preserve-indentation-on-addition
     description: Should preserve original indentation when adding new lines
@@ -660,10 +659,10 @@ apply_diff_tests:
             console.log("hello");
             console.log("world");
         }
-````
+```
 
 ## File: test/fixtures/search-replace/insertion-deletion.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: insertion-with-start-line
     description: Should insert code at a specific line when the search block is empty
@@ -723,10 +722,10 @@ apply_diff_tests:
     expected:
       success: true
       content: "Hello, World!"
-````
+```
 
 ## File: test/fixtures/search-replace/line-numbers.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: constrained-search-target-specific-duplicate
     description: Should use line numbers to target a specific instance of duplicate code
@@ -754,10 +753,10 @@ apply_diff_tests:
 
         // Instance 2
         processData(config);
-````
+```
 
 ## File: test/fixtures/search-replace/success.yml
-````yaml
+```yaml
 apply_diff_tests:
   - name: replace-exact-match
     description: Should replace content that is an exact match
@@ -852,10 +851,10 @@ apply_diff_tests:
     expected:
       success: true
       content: "const x = arr[0] * (y || 1);"
-````
+```
 
 ## File: test/fixtures/standard-diff/complex-scenarios.yml
-````yaml
+```yaml
 # More complex scenarios for standard diff
 apply_diff_tests:
   - name: context-only-hunk
@@ -990,10 +989,10 @@ apply_diff_tests:
         function blockC() {
             console.log("C modified");
         }
-````
+```
 
 ## File: test/fixtures/standard-diff/description.yml
-````yaml
+```yaml
 # Tests for the `getToolDescription` function
 tool_description_tests:
   - name: description-contains-key-elements
@@ -1005,10 +1004,10 @@ tool_description_tests:
       - "--- a/src/component.tsx"
       - "+++ b/src/component.tsx"
       - "@@ ... @@"
-````
+```
 
 ## File: test/fixtures/standard-diff/edge-cases.yml
-````yaml
+```yaml
 # Tests for edge cases
 apply_diff_tests:
   - name: pure-insertion-at-start
@@ -1151,10 +1150,10 @@ apply_diff_tests:
       content: |
         line 1
         line 2
-````
+```
 
 ## File: test/fixtures/standard-diff/failure.yml
-````yaml
+```yaml
 # Tests for failing applications of standard diffs
 apply_diff_tests:
   - name: fail-on-non-existent-content
@@ -1225,10 +1224,10 @@ apply_diff_tests:
     expected:
       success: false
       reason: "Could not apply modification"
-````
+```
 
 ## File: test/fixtures/standard-diff/fuzzy.yml
-````yaml
+```yaml
 # Tests for fuzzy matching and hunk splitting
 apply_diff_tests:
   - name: fuzzy-match-with-drifted-context
@@ -1467,10 +1466,10 @@ apply_diff_tests:
         function partC_modified_by_user() { // modified
             // updated C content
         }
-````
+```
 
 ## File: test/fixtures/standard-diff/success.yml
-````yaml
+```yaml
 # Tests for successful application of standard diffs
 apply_diff_tests:
   - name: simple-modification
@@ -1603,345 +1602,10 @@ apply_diff_tests:
         line1
 
         line3-modified
-````
-
-## File: README.md
-````markdown
-# apply-multi-diff
-
-> **Robust, dual-strategy diff application for Node.js and browser environments**
-> Apply standard unified diffs *or* semantic search-and-replace patches to source files with **fuzzy-matching**, **indentation-preserving insertions**, and **hunk-splitting** fallbacks.
-
-[![npm version](https://badge.fury.io/js/apply-multi-diff.svg)](https://www.npmjs.com/package/apply-multi-diff)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/nocapro/apply-multi-diff/blob/main/LICENSE)
-[![CI](https://github.com/nocapro/apply-multi-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/nocapro/apply-multi-diff/actions)
-
----
-
-## Installation
-
-```bash
-npm install apply-multi-diff
-# or
-yarn add apply-multi-diff
-# or
-bun add apply-multi-diff
 ```
-
----
-
-## Quick Start
-
-```ts
-import { applyStandardDiff, applySearchReplace } from 'apply-multi-diff';
-
-const original = `function add(a, b) {
-  return a + b;
-}`;
-
-// 1. Standard unified diff
-const diff = `--- a/math.ts
-+++ b/math.ts
-@@ -1,3 +1,3 @@
- function add(a, b) {
--  return a + b;
-+  return a + b + 1;
- }`;
-
-const result1 = applyStandardDiff(original, diff);
-console.log(result1.success && result1.content);
-// → function add(a, b) {
-//     return a + b + 1;
-//   }
-
-// 2. Search-replace (with fuzzy matching & auto-indent)
-const replace = `math.ts
-<<<<<<< SEARCH
-  return a + b;
-=======
-  return a - b;
->>>>>>> REPLACE`;
-
-const result2 = applySearchReplace(original, replace);
-console.log(result2.success && result2.content);
-// → function add(a, b) {
-//     return a - b;
-//   }
-```
-
----
-
-## Core Features
-
-| Feature | Standard Diff | Search-Replace |
-|---------|---------------|----------------|
-| **Format** | Unified diff (`---`, `+++`, `@@`) | `<<<<<<< SEARCH`, `=======`, `>>>>>>> REPLACE` |
-| **Multi-hunk** | ✅ | ✅ (multiple blocks per call) |
-| **Fuzzy match** | ✅ (Levenshtein + context drift) | ✅ (Levenshtein + string-literal guard) |
-| **Hunk splitting** | ✅ (fallback on failure) | — |
-| **Indentation aware** | — | ✅ (preserves surrounding indent) |
-| **Insert / Delete** | Pure addition / deletion hunks | Empty SEARCH or REPLACE block |
-| **Target by line range** | — | `start_line` / `end_line` |
-| **Unicode safe** | ✅ | ✅ |
-
----
-
-## API
-
-### 1. `applyStandardDiff(originalContent, diffContent)`
-
-Apply a standard unified diff.
-
-```ts
-import { applyStandardDiff } from 'apply-multi-diff';
-
-const res = applyStandardDiff(src, diff);
-if (!res.success) {
-  console.error(res.error.code, res.error.message);
-}
-```
-
-### 2. `applySearchReplace(originalContent, diffContent, options?)`
-
-Apply one or more search-replace blocks.
-
-```ts
-import { applySearchReplace } from 'apply-multi-diff';
-
-const res = applySearchReplace(
-  original,
-  diffContent,
-  { start_line: 42, end_line: 50 } // optional
-);
-```
-
-#### Options
-
-| Key | Type | Purpose |
-|-----|------|---------|
-| `start_line` | `number` | First line to consider when searching (1-based) |
-| `end_line` | `number` | Last line to consider when searching (1-based) |
-
----
-
-### Utility exports
-
-```ts
-import {
-  getStandardDiffToolDescription,   // Markdown help for LLM agents
-  getSearchReplaceToolDescription,  // Markdown help for LLM agents
-  ERROR_CODES,                      // Constant error codes
-  levenshtein,                      // Edit-distance helper
-  getCommonIndent, dedent           // Indentation helpers
-} from 'apply-multi-diff';
-```
-
----
-
-## LLM Integration Guide
-
-> **TL;DR for agents**
-> Use **Search-Replace** when you want **precise, targeted edits** (add import, rename function, delete block).
-> Use **Standard Diff** when you have a **complete diff from git** (multi-hunk, moved code).
-> When in doubt, start with Search-Replace—its fuzzy matcher is more forgiving of small source drift.
-
-### 1. Decide which strategy to use
-
-| Task Example | Recommended Strategy | Why |
-|--------------|----------------------|-----|
-| “Add a new import line at the top of the file.” | **Search-Replace** | One-line insertion with `start_line: 1` is trivial. |
-| “Rename the function `oldName` to `newName` everywhere.” | **Search-Replace** | Single search/replace block; fuzzy matching tolerates comment drift. |
-| “Apply the diff I just got from `git diff`.” | **Standard Diff** | Already in unified diff format; multi-hunk & context lines handled automatically. |
-| “Delete the entire `legacy()` function.” | **Search-Replace** | Empty REPLACE block; no need for full diff. |
-| “Apply 5 hunks across 3 files that touch imports, logic, and tests.” | **Standard Diff** (per file) | Hunk-splitting & exact context matching is built-in. |
-
-### 2. Prompt templates for the LLM
-
-#### A. Search-Replace (most common)
-
-```xml
-<apply_diff file_path="src/components/Header.tsx" start_line="3">
-Header.tsx
-<<<<<<< SEARCH
-import React from 'react';
-=======
-import React, { useState } from 'react';
->>>>>>> REPLACE
-</apply_diff>
-```
-
-- Provide `start_line` (and optionally `end_line`) whenever the search text may appear **multiple times** in the file.
-- Leave SEARCH empty for **pure insertion**; leave REPLACE empty for **pure deletion**.
-
-#### B. Standard Diff
-
-```xml
-<apply_diff file_path="src/utils/math.ts">
---- a/src/utils/math.ts
-+++ b/src/utils/math.ts
-@@ -10,7 +10,7 @@
- export function add(a: number, b: number): number {
--  return a + b;
-+  return a + b + 1;
- }
-</apply_diff>
-```
-
-- Do **not** alter spacing or context lines—the library uses them for exact matching.
-- If the diff is large, the library will automatically split failed hunks and retry with fuzzy matching.
-
-### 3. Handling ambiguous or failing patches
-
-| Symptom | LLM action |
-|---------|------------|
-| “Search block not found” | 1. Ask the LLM to loosen the search (shorter snippet, remove comments).  <br>2. Provide `start_line`/`end_line` to disambiguate. |
-| “Hunks overlap” (Standard Diff) | Split the diff into smaller logical pieces and apply them one file at a time. |
-| “Insertion requires a start_line” | Supply `start_line: N` where `N` is **the line number *before*** which the new code should appear. |
-| “Could not apply modification” (context drift) | Switch to **Search-Replace** with a shorter search snippet—its fuzzy matcher is more tolerant. |
-
-### 4. Quick reference flowchart
-
-```
-┌────────────────────────────────────────────┐
-│ Need to change code?                       │
-└──────────────┬─────────────────────────────┘
-               │
-   ┌───────────┴───────────┐
-   │ Is the change already  │  YES  →  Use Standard Diff
-   │ a full git diff?       │
-   └───────────┬───────────┘
-               │ NO
-   ┌───────────┴───────────┐
-   │ Targeted edit,        │  YES  →  Use Search-Replace
-   │ single block?         │
-   └───────────┬───────────┘
-               │ NO
-   ┌───────────┴───────────┐
-   │ Large multi-hunk,     │  YES  →  Use Standard Diff
-   │ contiguous changes?   │
-   └───────────┬───────────┘
-               │ NO
-   ┌───────────┴───────────┐
-   │ Mixed / unsure → start with Search-Replace,
-   │ fallback to Standard Diff if it fails.
-   └───────────────────────┘
-```
-
----
-
-## Usage Examples
-
-### 1. Insert new import at a specific line
-
-```ts
-const patch = `src/app.ts
-<<<<<<< SEARCH
-=======
-import { logger } from './logger';
->>>>>>> REPLACE`;
-
-applySearchReplace(content, patch, { start_line: 1 });
-```
-
-### 2. Delete a deprecated function
-
-```ts
-const patch = `src/legacy.ts
-<<<<<<< SEARCH
-function old() {
-  console.warn('deprecated');
-}
-=======
->>>>>>> REPLACE`;
-```
-
-### 3. Handle user edits with hunk-splitting (standard diff)
-
-Even if the user added unrelated code between hunks, the library splits the failing hunk and applies each valid sub-part.
-
----
-
-## Error Handling
-
-Both strategies return a discriminated union:
-
-```ts
-type ApplyDiffResult =
-  | { success: true; content: string }
-  | {
-      success: false;
-      error: { code: string; message: string };
-    };
-```
-
-Common `error.code` values:
-
-- `INVALID_DIFF_FORMAT`
-- `OVERLAPPING_HUNKS`
-- `CONTEXT_MISMATCH`
-- `SEARCH_BLOCK_NOT_FOUND`
-- `INSERTION_REQUIRES_LINE_NUMBER`
-
----
-
-## Directory Structure
-
-```
-src/
-  strategies/
-    standard-diff.ts   # Unified diff parser & applier
-    search-replace.ts  # Search/replace parser & applier
-  utils/
-    error.ts           # createErrorResult helper
-    logger.ts          # Simple console logger
-    string.ts          # levenshtein, getCommonIndent, dedent
-  constants.ts         # ERROR_CODES
-  types.ts             # ApplyDiffResult, DiffError
-test/
-  fixtures/            # 200+ YAML-driven test cases
-  strategies/
-    standard-diff.test.ts
-    search-replace.test.ts
-debug.ts               # CLI tool to step through failing tests
-```
-
----
-
-## Testing
-
-Uses Bun’s built-in test runner:
-
-```bash
-bun test
-```
-
-The repo contains **200+ declarative test cases** in `test/fixtures/` covering:
-
-- Edge cases (empty files, unicode, trailing newlines)
-- Fuzzy matching (minor comment drift)
-- Overlapping hunks & ambiguous matches
-- Indentation preservation
-- Insertion & deletion scenarios
-
----
-
-## Contributing
-
-1. Fork the repo
-2. `bun install`
-3. Write/fix code & add tests under `test/fixtures/`
-4. `bun test`
-5. PR with a clear description
-
----
-
-## License
-
-MIT © [nocapro](https://github.com/nocapro)
-````
 
 ## File: src/utils/string.ts
-````typescript
+```typescript
 export const levenshtein = (s1: string, s2: string): number => {
   if (s1.length < s2.length) {
     return levenshtein(s2, s1);
@@ -1993,10 +1657,10 @@ export const dedent = (text: string): string => {
     )
     .join("\n");
 };
-````
+```
 
 ## File: src/index.ts
-````typescript
+```typescript
 export {
   applyDiff as applyStandardDiff,
   getToolDescription as getStandardDiffToolDescription,
@@ -2011,10 +1675,10 @@ export * from "./constants";
 export * from "./utils/error";
 export * from "./utils/logger";
 export * from "./utils/string";
-````
+```
 
 ## File: debug.ts
-````typescript
+```typescript
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
@@ -2258,10 +1922,10 @@ const runTest = () => {
 };
 
 runTest();
-````
+```
 
 ## File: package.json
-````json
+```json
 {
   "name": "diff-apply",
   "module": "src/index.ts",
@@ -2275,10 +1939,10 @@ runTest();
     "typescript": "^5.0.0"
   }
 }
-````
+```
 
 ## File: test/strategies/search-replace.test.ts
-````typescript
+```typescript
 import { describe, it, expect } from "bun:test";
 import fs from "fs";
 import path from "path";
@@ -2390,10 +2054,10 @@ describe("Search/Replace Strategy", () => {
     });
   });
 });
-````
+```
 
 ## File: test/strategies/standard-diff.test.ts
-````typescript
+```typescript
 import { describe, it, expect } from "bun:test";
 import fs from "fs";
 import path from "path";
@@ -2499,10 +2163,10 @@ describe("Standard Diff Strategy", () => {
     });
   });
 });
-````
+```
 
 ## File: tsconfig.json
-````json
+```json
 {
   "include": [
     "test",
@@ -2530,10 +2194,10 @@ describe("Standard Diff Strategy", () => {
     ]
   }
 }
-````
+```
 
 ## File: src/strategies/standard-diff.ts
-````typescript
+```typescript
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
@@ -2550,14 +2214,11 @@ export type Hunk = {
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Standard Diff Format
 
-Applies changes to a single file using the standard unified diff format. This tool is highly resilient and uses multiple fallback strategies (fuzzy matching, hunk splitting) to apply changes even if the source file has been modified.
+Applies unified diff to a file. Supports fuzzy matching and hunk splitting.
 
 Parameters:
-  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
-  :diff_content: (required) A string containing the changes in the unified diff format.
-
-Format Requirements:
-The \`diff_content\` must start with \`---\` and \`+++\` headers, followed by one or more \`@@ ... @@\` hunk headers.
+  :file_path: Path to file relative to ${cwd}
+  :diff_content: Unified diff format with ---\` headers, followed by one or more \`@@ ... @@\` hunk headers.
 
 - Lines starting with \` \` (a space) are context and must match the original file.
 - Lines starting with \`-\` will be removed.
@@ -2812,10 +2473,10 @@ export const applyDiff = (
   
   return { success: true, content };
 };
-````
+```
 
 ## File: src/strategies/search-replace.ts
-````typescript
+```typescript
 import { ERROR_CODES } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
@@ -2824,47 +2485,22 @@ import { getCommonIndent, levenshtein, dedent } from "../utils/string";
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
 
-Applies a targeted code change to a single file using a search-and-replace format. This is ideal for precise modifications, insertions, or deletions of specific code blocks. It supports fuzzy matching and multiple replacements in a single call.
+Targeted code changes using search/replace blocks. Supports fuzzy matching.
 
 Parameters:
-  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
-  :diff_content: (required) A string containing one or more search and replace blocks.
-  :start_line: (optional) The line number in the original file where the search block is expected to start. Use this to resolve ambiguity when the same code appears multiple times. Required for insertions.
-  :end_line: (optional) The line number in the original file where the search block is expected to end.
-
-Format Requirements:
-The \`diff_content\` must follow this structure. You can include multiple blocks.
-
-<file_path_ignored_but_useful_for_context>
-<<<<<<< SEARCH
-[content to find and replace]
+  :file_path: Path to file relative to ${cwd}
+  :diff_content: Search/replace blocks
+  :start_line: (optional) Line to start search (required for insertions)
+  :end_line: (optional) Line to end search
+Format:
+<<<<< SEARCH
+content to find
 =======
-[new content to insert]
->>>>>>> REPLACE
+replacement content
+>>>>> REPLACE
 
-Special Cases:
-- To INSERT code, leave the SEARCH block empty and provide a \`start_line\`. The new code will be inserted before that line.
-- To DELETE code, leave the REPLACE block empty.
-
-Examples:
-
-1. Fuzzy Replace (will match even if comments are slightly different):
-<apply_diff file_path="src/utils.ts">
-  src/utils.ts
-  <<<<<<< SEARCH
-  // old function
-  function oldFunction() {
-    return 1;
-  }
-  =======
-  // new, improved function
-  function newFunction() {
-    return 2;
-  }
-  >>>>>>> REPLACE
-</apply_diff>
-
-2. Insertion (note the empty SEARCH block and \`start_line\`):
+Special cases:
+- INSERT Insertion (note the empty SEARCH block and \`start_line\`):
 <apply_diff file_path="src/app.ts" start_line="5">
   src/app.ts
   <<<<<<< SEARCH
@@ -3160,4 +2796,4 @@ export const applyDiff = (
 
   return { success: true, content: currentContent };
 };
-````
+```

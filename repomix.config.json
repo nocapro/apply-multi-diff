@@ -33,7 +33,7 @@
       "bun.lockb",
       "repomix.config.json",
       "relay.config.json",
-      // "README.md",
+      "README.md",
       ".relay",
       "docs",
       "tsconfig.tsbuildinfo"

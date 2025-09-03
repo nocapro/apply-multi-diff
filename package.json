@@ -1,11 +1,47 @@
 {
-  "name": "diff-apply",
-  "module": "src/index.ts",
+  "name": "apply-multi-diff",
+  "version": "0.1.0",
+  "description": "A zero-dependency library to apply unified diffs and search-and-replace patches, with support for fuzzy matching.",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nocapro/apply-multi-diff.git"
+  },
+  "keywords": [
+    "diff",
+    "patch",
+    "apply",
+    "unified-diff",
+    "search-replace",
+    "fuzzy"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nocapro/apply-multi-diff/issues"
+  },
+  "homepage": "https://github.com/nocapro/apply-multi-diff#readme",
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "bun-types": "latest",
     "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.9"
+    "tsup": "^8.0.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

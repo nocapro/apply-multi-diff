@@ -1,0 +1,86 @@
+uuid: 4d284e3e-6bb8-4d69-a1b4-7d5d0f171097
+projectId: diff-apply
+createdAt: '2025-09-03T02:16:55.637Z'
+linesAdded: 40
+linesRemoved: 6
+gitCommitMsg: 'chore: configure package for npm publishing'
+promptSummary: >-
+  Prepare the library for npm publishing under the name 'apply-multi-diff',
+  setting up tsup for building and emphasizing zero dependencies.
+reasoning:
+  - >-
+    ok, time to get this thing shipped. configuring for npm is just a matter of
+    wrangling some json.
+  - >-
+    i'll update `package.json` to prep it for publishing. this means setting the
+    package name to `apply-multi-diff`, adding a build script with `tsup`, and
+    defining the entry points for cjs/esm. also adding repo info and making sure
+    we only ship the `dist` folder. zero prod deps, as requested.
+operations:
+  - type: write
+    path: package.json
+    content: |-
+      {
+        "name": "apply-multi-diff",
+        "version": "0.1.0",
+        "description": "A zero-dependency library to apply unified diffs and search-and-replace patches, with support for fuzzy matching.",
+        "type": "module",
+        "main": "./dist/index.js",
+        "module": "./dist/index.mjs",
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+          }
+        },
+        "files": [
+          "dist"
+        ],
+        "scripts": {
+          "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+          "test": "bun test"
+        },
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/nocapro/apply-multi-diff.git"
+        },
+        "keywords": [
+          "diff",
+          "patch",
+          "apply",
+          "unified-diff",
+          "search-replace",
+          "fuzzy"
+        ],
+        "license": "MIT",
+        "bugs": {
+          "url": "https://github.com/nocapro/apply-multi-diff/issues"
+        },
+        "homepage": "https://github.com/nocapro/apply-multi-diff#readme",
+        "devDependencies": {
+          "@types/js-yaml": "^4.0.9",
+          "bun-types": "latest",
+          "js-yaml": "^4.1.0",
+          "tsup": "^8.0.2",
+          "typescript": "^5.4.5"
+        }
+      }
+    patchStrategy: replace
+snapshot:
+  package.json: |-
+    {
+      "name": "diff-apply",
+      "module": "src/index.ts",
+      "type": "module",
+      "devDependencies": {
+        "bun-types": "latest",
+        "js-yaml": "^4.1.0",
+        "@types/js-yaml": "^4.0.9"
+      },
+      "peerDependencies": {
+        "typescript": "^5.0.0"
+      }
+    }
+approved: true
