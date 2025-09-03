@@ -3,7 +3,7 @@ import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
 import { levenshtein } from "../utils/string";
 
-type Hunk = {
+export type Hunk = {
   originalStartLine: number;
   originalLineCount: number;
   newStartLine: number;
@@ -45,7 +45,7 @@ Example:
 </apply_diff>`;
 };
 
-const parseHunks = (diffContent: string): Hunk[] | null => {
+export const _parseHunks_for_debug = (diffContent: string): Hunk[] | null => {
   const lines = diffContent.split("\n");
   const hunks: Hunk[] = [];
   let currentHunk: Omit<Hunk, 'lines'> & { lines: string[] } | null = null;
@@ -121,7 +121,7 @@ const applyHunkAt = (
   return result;
 };
 
-const findAndApplyHunk = (
+export const _findAndApplyHunk_for_debug = (
   sourceLines: readonly string[],
   hunk: Hunk
 ): { success: true; newLines: string[] } | { success: false } => {
@@ -175,7 +175,7 @@ const findAndApplyHunk = (
 };
 
 
-const splitHunk = (hunk: Hunk): Hunk[] => {
+export const _splitHunk_for_debug = (hunk: Hunk): Hunk[] => {
   const subHunks: Hunk[] = [];
   const context = 2; 
   let i = 0;
@@ -206,7 +206,7 @@ export const applyDiff = (
   originalContent: string,
   diffContent: string
 ): ApplyDiffResult => {
-  const hunks = parseHunks(diffContent);
+  const hunks = _parseHunks_for_debug(diffContent);
   if (!hunks) {
     return createErrorResult(
       ERROR_CODES.INVALID_DIFF_FORMAT,
@@ -230,12 +230,12 @@ export const applyDiff = (
   let appliedSuccessfully = true;
 
   for (const hunk of hunks) {
-    const result = findAndApplyHunk(lines, hunk);
+    const result = _findAndApplyHunk_for_debug(lines, hunk);
     if (result.success) {
       lines = result.newLines;
     } else {
       // --- FALLBACK: Hunk Splitting ---
-      const subHunks = splitHunk(hunk);
+      const subHunks = _splitHunk_for_debug(hunk);
       if (subHunks.length <= 1) { // No benefit in splitting a single change block
         appliedSuccessfully = false;
         break;
@@ -243,7 +243,7 @@ export const applyDiff = (
 
       let allSubHunksApplied = true;
       for (const subHunk of subHunks) {
-        const subResult = findAndApplyHunk(lines, subHunk);
+        const subResult = _findAndApplyHunk_for_debug(lines, subHunk);
         if (subResult.success) {
           lines = subResult.newLines;
         } else {

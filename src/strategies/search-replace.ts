@@ -75,7 +75,7 @@ const cleanBlock = (block: string) =>
 
 type SearchReplaceBlock = { search: string; replace: string };
 
-const parseDiff = (diffContent: string): SearchReplaceBlock[] | null => {
+export const _parseDiff_for_debug = (diffContent: string): SearchReplaceBlock[] | null => {
   const blocks: SearchReplaceBlock[] = [];
   const searchMarker = /^\s*<<<<<<< SEARCH\s*$/m;
   const replaceMarker = /^\s*>>>>>>> REPLACE\s*$/m;
@@ -110,7 +110,7 @@ const parseDiff = (diffContent: string): SearchReplaceBlock[] | null => {
   return blocks.length > 0 ? blocks : null;
 };
 
-const findBestMatch = (
+export const _findBestMatch_for_debug = (
   sourceLines: readonly string[],
   searchLines: readonly string[],
   startLine: number,
@@ -176,7 +176,7 @@ export const applyDiff = (
   diff_content: string,
   options: { start_line?: number; end_line?: number } = {}
 ): ApplyDiffResult => {
-  const blocks = parseDiff(diff_content);
+  const blocks = _parseDiff_for_debug(diff_content);
   if (!blocks) {
     return createErrorResult(
       ERROR_CODES.INVALID_DIFF_FORMAT,
@@ -250,7 +250,7 @@ export const applyDiff = (
     // which is interpreted as two lines. We want `['']`.
     const searchLines = block.search === '\n' ? [''] : block.search.split("\n");
 
-    const match = findBestMatch(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
+    const match = _findBestMatch_for_debug(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
 
     if (match === null) {
       return createErrorResult(

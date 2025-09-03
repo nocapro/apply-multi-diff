@@ -123,7 +123,7 @@ const debugSearchReplace = (testCase: ApplyDiffTestCase) => {
     const replaceBaseIndent = getCommonIndent(block.replace);
     console.log(`Replace Base Indent: '${replaceBaseIndent}' (length: ${replaceBaseIndent.length})`);
 
-    const reindentedReplaceLines = replaceLines.map(line => {
+    const reindentedReplaceLines = replaceLines.map((line: string) => {
       if (line.trim() === "") return "";
       const dedentedLine = line.startsWith(replaceBaseIndent)
         ? line.substring(replaceBaseIndent.length)
