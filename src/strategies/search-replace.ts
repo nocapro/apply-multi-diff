@@ -6,47 +6,22 @@ import { getCommonIndent, levenshtein, dedent } from "../utils/string";
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
 
-Applies a targeted code change to a single file using a search-and-replace format. This is ideal for precise modifications, insertions, or deletions of specific code blocks. It supports fuzzy matching and multiple replacements in a single call.
+Targeted code changes using search/replace blocks. Supports fuzzy matching.
 
 Parameters:
-  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
-  :diff_content: (required) A string containing one or more search and replace blocks.
-  :start_line: (optional) The line number in the original file where the search block is expected to start. Use this to resolve ambiguity when the same code appears multiple times. Required for insertions.
-  :end_line: (optional) The line number in the original file where the search block is expected to end.
-
-Format Requirements:
-The \`diff_content\` must follow this structure. You can include multiple blocks.
-
-<file_path_ignored_but_useful_for_context>
-<<<<<<< SEARCH
-[content to find and replace]
+  :file_path: Path to file relative to ${cwd}
+  :diff_content: Search/replace blocks
+  :start_line: (optional) Line to start search (required for insertions)
+  :end_line: (optional) Line to end search
+Format:
+<<<<< SEARCH
+content to find
 =======
-[new content to insert]
->>>>>>> REPLACE
+replacement content
+>>>>> REPLACE
 
-Special Cases:
-- To INSERT code, leave the SEARCH block empty and provide a \`start_line\`. The new code will be inserted before that line.
-- To DELETE code, leave the REPLACE block empty.
-
-Examples:
-
-1. Fuzzy Replace (will match even if comments are slightly different):
-<apply_diff file_path="src/utils.ts">
-  src/utils.ts
-  <<<<<<< SEARCH
-  // old function
-  function oldFunction() {
-    return 1;
-  }
-  =======
-  // new, improved function
-  function newFunction() {
-    return 2;
-  }
-  >>>>>>> REPLACE
-</apply_diff>
-
-2. Insertion (note the empty SEARCH block and \`start_line\`):
+Special cases:
+- INSERT Insertion (note the empty SEARCH block and \`start_line\`):
 <apply_diff file_path="src/app.ts" start_line="5">
   src/app.ts
   <<<<<<< SEARCH

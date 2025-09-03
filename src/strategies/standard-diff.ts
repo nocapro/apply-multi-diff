@@ -14,14 +14,11 @@ export type Hunk = {
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Standard Diff Format
 
-Applies changes to a single file using the standard unified diff format. This tool is highly resilient and uses multiple fallback strategies (fuzzy matching, hunk splitting) to apply changes even if the source file has been modified.
+Applies unified diff to a file. Supports fuzzy matching and hunk splitting.
 
 Parameters:
-  :file_path: (required) The path to the file to modify, relative to the current working directory ${cwd}.
-  :diff_content: (required) A string containing the changes in the unified diff format.
-
-Format Requirements:
-The \`diff_content\` must start with \`---\` and \`+++\` headers, followed by one or more \`@@ ... @@\` hunk headers.
+  :file_path: Path to file relative to ${cwd}
+  :diff_content: Unified diff format with ---\` headers, followed by one or more \`@@ ... @@\` hunk headers.
 
 - Lines starting with \` \` (a space) are context and must match the original file.
 - Lines starting with \`-\` will be removed.
