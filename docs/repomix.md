@@ -36,6 +36,7 @@ test/
 debug.ts
 package.json
 tsconfig.json
+tsup.config.ts
 ```
 
 # Files
@@ -1604,6 +1605,20 @@ apply_diff_tests:
         line3-modified
 ```
 
+## File: tsup.config.ts
+```typescript
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['cjs', 'esm'],
+  dts: true,
+  splitting: false,
+  sourcemap: true,
+  clean: true,
+});
+```
+
 ## File: src/utils/string.ts
 ```typescript
 export const levenshtein = (s1: string, s2: string): number => {
@@ -1924,23 +1939,6 @@ const runTest = () => {
 runTest();
 ```
 
-## File: package.json
-```json
-{
-  "name": "diff-apply",
-  "module": "src/index.ts",
-  "type": "module",
-  "devDependencies": {
-    "bun-types": "latest",
-    "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.9"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  }
-}
-```
-
 ## File: test/strategies/search-replace.test.ts
 ```typescript
 import { describe, it, expect } from "bun:test";
@@ -2165,12 +2163,69 @@ describe("Standard Diff Strategy", () => {
 });
 ```
 
+## File: package.json
+```json
+{
+  "name": "apply-multi-diff",
+  "version": "0.1.0",
+  "description": "A zero-dependency library to apply unified diffs and search-and-replace patches, with support for fuzzy matching.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nocapro/apply-multi-diff.git"
+  },
+  "keywords": [
+    "diff",
+    "patch",
+    "apply",
+    "unified-diff",
+    "search-replace",
+    "fuzzy"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nocapro/apply-multi-diff/issues"
+  },
+  "homepage": "https://github.com/nocapro/apply-multi-diff#readme",
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "bun-types": "latest",
+    "js-yaml": "^4.1.0",
+    "tsup": "^8.0.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+```
+
 ## File: tsconfig.json
 ```json
 {
   "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
     "test",
-    "src",
     "debug.ts"
   ],
   "compilerOptions": {
@@ -2180,8 +2235,6 @@ describe("Standard Diff Strategy", () => {
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "composite": true,
     "strict": true,
     "downlevelIteration": true,
     "skipLibCheck": true,
