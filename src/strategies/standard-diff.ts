@@ -47,11 +47,12 @@ export const _parseHunks_for_debug = (diffContent: string): Hunk[] | null => {
   const hunks: Hunk[] = [];
   let currentHunk: Omit<Hunk, 'lines'> & { lines: string[] } | null = null;
   const hunkHeaderRegex = /^@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@/;
+  const fuzzyHunkHeaderRegex = /^@@ .* @@/;
 
   for (const line of lines) {
     if (line.startsWith("---") || line.startsWith("+++")) continue;
 
-    const match = line.match(hunkHeaderRegex);
+    let match = line.match(hunkHeaderRegex);
     if (match) {
       if (currentHunk) hunks.push(currentHunk);
       currentHunk = {
@@ -59,6 +60,15 @@ export const _parseHunks_for_debug = (diffContent: string): Hunk[] | null => {
         originalLineCount: match[3] ? parseInt(match[3], 10) : 1,
         newStartLine: parseInt(match[4] ?? '0', 10),
         newLineCount: match[6] ? parseInt(match[6], 10) : 1,
+        lines: [],
+      };
+    } else if (fuzzyHunkHeaderRegex.test(line)) {
+      if (currentHunk) hunks.push(currentHunk);
+       currentHunk = {
+        originalStartLine: 1, // For fuzzy hunks, we don't have a line number, so we'll start search from the top.
+        originalLineCount: 1,
+        newStartLine: 1,
+        newLineCount: 1,
         lines: [],
       };
     } else if (currentHunk) {
@@ -153,6 +163,16 @@ export const _findAndApplyHunk_for_debug = (
     if (slice.join("\n") === pattern.join("\n")) {
       return { success: true, newLines: applyHunkAt(sourceLines, hunk, expectedStartIndex) };
     }
+  }
+
+  const contextLineCount = hunk.lines.filter(l => l.startsWith(' ')).length;
+  if (contextLineCount === 0 && pattern.length > 0) {
+    // For hunks without any context lines (pure additions/deletions),
+    // we already tried an exact match at the expected line number in STAGE 1.
+    // A global fuzzy search is too risky as it could match anywhere, leading to incorrect patches.
+    // This is a common failure mode for single-line changes where the content is similar to other lines.
+    // So we fail here if the exact match didn't work.
+    return { success: false };
   }
 
   // --- STAGE 2: Fuzzy Match (Global Search) ---
