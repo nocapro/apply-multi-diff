@@ -1,0 +1,46 @@
+apply_diff_tests:
+  - name: reject-fuzzy-on-different-variable
+    description: Should reject a fuzzy match that targets a different variable name
+    input:
+      original_content: |
+        const bar = 1;
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        const foo = 1;
+        =======
+        const foo = 2;
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+  - name: reject-fuzzy-on-different-function-call
+    description: Should reject a fuzzy match that targets a different function call
+    input:
+      original_content: |
+        calculateSubtotal();
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        calculateTotal();
+        =======
+        calculateTotal(true);
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"
+  - name: reject-fuzzy-on-different-numeric-literal
+    description: Should reject a fuzzy match that targets a different number
+    input:
+      original_content: |
+        if (value > 200) { return; }
+      diff_content: |
+        test.ts
+        <<<<<<< SEARCH
+        if (value > 100) { return; }
+        =======
+        if (value > 150) { return; } // New threshold
+        >>>>>>> REPLACE
+    expected:
+      success: false
+      reason: "Search block not found"

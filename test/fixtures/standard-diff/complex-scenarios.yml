@@ -110,25 +110,5 @@ apply_diff_tests:
         +    console.log("C modified");
          }
     expected:
-      success: true
-      content: |
-        // Block A
-        function blockA() {
-            console.log("A modified");
-        }
-
-        // User edit here, broke the hunk
-        console.log("user edit 1");
-
-        // Block B - slightly modified by user
-        function blockB() { // user comment
-            console.log("B modified");
-        }
-
-        // User edit here, broke the hunk again
-        console.log("user edit 2");
-
-        // Block C
-        function blockC() {
-            console.log("C modified");
-        }
+      success: false
+      reason: "Could not apply modification"

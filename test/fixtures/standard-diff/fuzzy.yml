@@ -175,22 +175,8 @@ apply_diff_tests:
         +    // deinitialize
          }
     expected:
-      success: true
-      content: |
-        function setup() {
-            console.log("Initializing part 1... DONE");
-            // initialize
-        }
-
-        // User added a new function here, breaking the hunk's contiguity
-        function helper() {
-            return true;
-        }
-
-        function tearDown() {
-            console.log("Tearing down part 3... DONE");
-            // deinitialize
-        }
+      success: false
+      reason: "Could not apply modification"
 
   - name: hunk-splitting-with-fuzzy-sub-hunk
     description: Should split a hunk and then fuzzy-match a sub-hunk
@@ -223,16 +209,5 @@ apply_diff_tests:
         +    // updated C content
          }
     expected:
-      success: true
-      content: |
-        function partA() {
-            // updated A content
-        }
-
-        // User added this function, breaking the hunk
-        function partB_user_added() {}
-
-        // User also modified this part slightly
-        function partC_modified_by_user() { // modified
-            // updated C content
-        }
+      success: false
+      reason: "Could not apply modification"

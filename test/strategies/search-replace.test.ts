@@ -55,6 +55,9 @@ const loadFixturesFromDir = (dirPath: string): TestFixtures => {
       if (fixture.apply_diff_tests) {
         allFixtures.apply_diff_tests.push(...fixture.apply_diff_tests);
       }
+      if ((fixture as any).apply_diff_tests) {
+        allFixtures.apply_diff_tests.push(...(fixture as any).apply_diff_tests);
+      }
     }
   }
   return allFixtures;

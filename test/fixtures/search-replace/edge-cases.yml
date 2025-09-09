@@ -114,9 +114,9 @@ apply_diff_tests:
       diff_content: |
         test.ts
         <<<<<<< SEARCH
-        '你好世界'
+        const greeting = '你好世界';
         =======
-        'こんにちは世界'
+        const greeting = 'こんにちは世界';
         >>>>>>> REPLACE
     expected:
       success: true

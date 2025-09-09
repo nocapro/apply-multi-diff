@@ -168,12 +168,13 @@ export const _findAndApplyHunk_for_debug = (
   }
 
   const contextLineCount = hunk.lines.filter(l => l.startsWith(' ')).length;
-  if (contextLineCount === 0 && pattern.length > 0) {
+  if (contextLineCount === 0 && pattern.length > 0 && hunk.originalLineCount > 0) {
     // For hunks without any context lines (pure additions/deletions),
     // we already tried an exact match at the expected line number in STAGE 1.
     // A global fuzzy search is too risky as it could match anywhere, leading to incorrect patches.
     // This is a common failure mode for single-line changes where the content is similar to other lines.
     // So we fail here if the exact match didn't work.
+    // We allow it if originalLineCount is 0, which means it's a pure insertion from an empty file.
     return { success: false };
   }
 
@@ -181,11 +182,7 @@ export const _findAndApplyHunk_for_debug = (
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
-  
-  // For the specific test case that expects failure, we need to be more strict
-  // Check if this looks like the failing test case pattern
-  const isFailingTestCase = patternText.includes("// some code B") && patternText.includes("// new code B");
-  const maxDistanceThreshold = isFailingTestCase ? Math.floor(patternText.length * 0.05) : Math.floor(patternText.length * 0.30); // 5% for failing test, 30% otherwise
+  const maxDistanceThreshold = Math.floor(patternText.length * 0.20); // 20% threshold
 
   for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
     const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
@@ -204,33 +201,6 @@ export const _findAndApplyHunk_for_debug = (
   return { success: false };
 };
 
-
-export const _splitHunk_for_debug = (hunk: Hunk): Hunk[] => {
-  const subHunks: Hunk[] = [];
-  const context = 2; 
-  let i = 0;
-  while (i < hunk.lines.length) {
-    // Skip leading context
-    while (i < hunk.lines.length && hunk.lines[i]?.startsWith(" ")) i++;
-    if (i === hunk.lines.length) break;
-
-    const changeBlockStart = i;
-    // Find end of this change block
-    while (i < hunk.lines.length && !hunk.lines[i]?.startsWith(" ")) i++;
-    const changeBlockEnd = i;
-
-    const subHunkStart = Math.max(0, changeBlockStart - context);
-    const subHunkEnd = Math.min(hunk.lines.length, changeBlockEnd + context);
-    
-    const subHunkLines = hunk.lines.slice(subHunkStart, subHunkEnd);
-
-    subHunks.push({
-      ...hunk, // Carry over metadata, although it's less accurate for sub-hunks
-      lines: subHunkLines,
-    });
-  }
-  return subHunks;
-};
 
 export const applyDiff = (
   originalContent: string,
@@ -264,36 +234,16 @@ export const applyDiff = (
     const result = _findAndApplyHunk_for_debug(lines, hunk);
     if (result.success) {
       lines = result.newLines;
-    } else {
-      // --- FALLBACK: Hunk Splitting ---
-      const subHunks = _splitHunk_for_debug(hunk);
-      if (subHunks.length <= 1) { // No benefit in splitting a single change block
-        appliedSuccessfully = false;
-        break;
-      }
-
-      let allSubHunksApplied = true;
-      for (const subHunk of subHunks) {
-        const subResult = _findAndApplyHunk_for_debug(lines, subHunk);
-        if (subResult.success) {
-          lines = subResult.newLines;
-        } else {
-          allSubHunksApplied = false;
-          break;
-        }
-      }
-
-      if (!allSubHunksApplied) {
-        appliedSuccessfully = false;
-        break;
-      }
+    } else { 
+      appliedSuccessfully = false;
+      break; 
     }
   }
 
   if (!appliedSuccessfully) {
     return createErrorResult(
       ERROR_CODES.CONTEXT_MISMATCH,
-      "Could not apply modification. A hunk could not be matched, even with fuzzy search and hunk splitting fallbacks."
+      "Could not apply modification. A hunk could not be matched, even with fuzzy search."
     );
   }
 
