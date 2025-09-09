@@ -36,7 +36,8 @@
       "README.md",
       ".relay",
       "docs",
-      "tsconfig.tsbuildinfo"
+      "tsconfig.tsbuildinfo",
+      "debug.ts"
     ]
   },
   "security": {

@@ -29,7 +29,9 @@ Special cases:
   // Add a new configuration setting
   const newConfig = initializeNewDependency();
   >>>>>>> REPLACE
-</apply_diff>`;
+</apply_diff>
+
+- current working directory ${cwd}`;
 };
 
 const stripLineNumbers = (text: string): string => {
@@ -92,16 +94,36 @@ export const _findBestMatch_for_debug = (
   endLine: number
 ): { index: number; distance: number } | null => {
   if (searchLines.length === 0) return null;
+  
+  const searchStart = startLine - 1;
+  const searchEnd = endLine ?? sourceLines.length;
+
+  // Special case: searching for a single newline (whitespace removal)
+  if (searchLines.length === 1 && searchLines[0] === '\n') {
+    // Look for a blank line in the source within the search range
+    for (let i = searchStart; i < Math.min(searchEnd, sourceLines.length); i++) {
+      if (sourceLines[i] === '') {
+        return { index: i, distance: 0 };
+      }
+    }
+    return null;
+  }
 
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const searchText = searchLines.join("\n");
   const dedentedSearchText = dedent(searchText);
 
-  const searchStart = startLine - 1;
-  const searchEnd = endLine ?? sourceLines.length;
+  // Only search within the specified range
+  const actualSearchEnd = Math.min(searchEnd, sourceLines.length);
+  const maxSearchIndex = Math.min(actualSearchEnd - searchLines.length, sourceLines.length - searchLines.length);
+  
+  // If the search range is invalid, return null
+  if (searchStart > maxSearchIndex || searchStart < 0) {
+    return null;
+  }
 
-  for (let i = searchStart; i <= searchEnd - searchLines.length; i++) {
+  for (let i = searchStart; i <= maxSearchIndex; i++) {
     const slice = sourceLines.slice(i, i + searchLines.length);
     const sliceText = slice.join("\n");
     const dedentedSliceText = dedent(sliceText);
@@ -230,7 +252,7 @@ export const applyDiff = (
     // JS `split` behavior with trailing newlines is tricky.
     // A search for a single blank line (`block.search`="\n") becomes `['', '']`,
     // which is interpreted as two lines. We want `['']`.
-    const searchLines = block.search === '\n' ? [''] : block.search.split("\n");
+    const searchLines = block.search === '\n' ? ['\n'] : block.search.split("\n");
 
     const match = _findBestMatch_for_debug(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
 
