@@ -1,7 +1,11 @@
-import { ERROR_CODES } from "../constants";
+import {
+  ERROR_CODES,
+  DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS,
+  DEFAULT_GLOBAL_FUZZY_SEARCH_CAP,
+} from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
-import { getCommonIndent, levenshtein, dedent } from "../utils/string";
+import { getCommonIndent, levenshtein } from "../utils/string";
 
 export const getToolDescription = (cwd: string): string => {
   return `apply_diff Tool: Search and Replace
@@ -95,23 +99,63 @@ export const _parseDiff_for_debug = (diffContent: string): SearchReplaceBlock[] 
 export const _findBestMatch_for_debug = (
   sourceLines: readonly string[],
   searchLines: readonly string[],
-  startLine: number,
-  endLine: number
+  startLineOpt: number | undefined,
+  endLineOpt: number | undefined
 ): { index: number; distance: number } | null => {
   if (searchLines.length === 0) return null; // Should not happen if called from applyDiff
   
-  const searchStart = startLine - 1;
-  const searchEnd = endLine ?? sourceLines.length;
+  let effectiveSearchStart: number;
+  let effectiveSearchEnd: number;
+
+  if (typeof startLineOpt === "number" || typeof endLineOpt === "number") {
+    // If explicit start/end lines are provided, use them
+    effectiveSearchStart = (startLineOpt ?? 1) - 1;
+    effectiveSearchEnd = endLineOpt ?? sourceLines.length;
+  } else {
+    // No explicit start/end lines: try to find a reference point to narrow the search
+    let referenceIndex = -1;
+    const firstSignificantSearchLine = searchLines.find((l) => l.trim().length > 0);
+
+    if (firstSignificantSearchLine) {
+      // Find the first exact match of the first significant line of the search pattern
+      for (let i = 0; i < sourceLines.length; i++) {
+        if (sourceLines[i] === firstSignificantSearchLine) {
+          referenceIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (referenceIndex !== -1) {
+      // Center the search window around the reference point
+      effectiveSearchStart = Math.max(0, referenceIndex - DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS);
+      effectiveSearchEnd = Math.min(
+        sourceLines.length,
+        referenceIndex + searchLines.length + DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS
+      );
+    } else {
+      // Fallback: If no reference point, perform fuzzy search only within a capped range from the beginning
+      // This is less ideal but prevents scanning the entire file with large blocks.
+      effectiveSearchStart = 0;
+      effectiveSearchEnd = Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP);
+    }
+  }
 
   // Special case: searching for a single newline (whitespace removal)
   if (searchLines.length === 1 && searchLines[0] === '') {
     // Look for a blank line in the source within the search range
-    for (let i = searchStart; i < Math.min(searchEnd, sourceLines.length); i++) {
+    for (let i = effectiveSearchStart; i < Math.min(effectiveSearchEnd, sourceLines.length); i++) {
       if (sourceLines[i] === '') {
         return { index: i, distance: 0 };
       }
     }
     return null;
+  }
+  
+  // Validate the search range before starting the main loop
+  const maxSearchIndex = effectiveSearchEnd - searchLines.length;
+  if (effectiveSearchStart > maxSearchIndex || effectiveSearchStart < 0) {
+    return null; // Search block is larger than the search window, or invalid range
   }
 
   let bestMatchIndex = -1;
@@ -119,16 +163,7 @@ export const _findBestMatch_for_debug = (
   const searchText = searchLines.join("\n");
   const trimmedSearchText = searchLines.map(l => l.trim()).join('\n');
 
-  // Only search within the specified range
-  const actualSearchEnd = Math.min(searchEnd, sourceLines.length);
-  const maxSearchIndex = actualSearchEnd - searchLines.length;
-  
-  // If the search range is invalid, return null
-  if (searchStart > maxSearchIndex || searchStart < 0) {
-    return null;
-  }
-
-  for (let i = searchStart; i <= maxSearchIndex; i++) {
+  for (let i = effectiveSearchStart; i <= maxSearchIndex; i++) {
     const slice = sourceLines.slice(i, i + searchLines.length);
     // Compare trimmed content to be indentation-agnostic
     const trimmedSliceText = slice.map(l => l.trim()).join('\n');

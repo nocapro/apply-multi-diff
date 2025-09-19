@@ -23,22 +23,17 @@
     }
   },
   "include": [
-
+    "package.json",
+    "tsconfig.json",
+    "tsup.config.ts",
+    "src"
+    // "test"
+    // "docs/took-very-long.md"
   ],
   "ignore": {
     "useGitignore": true,
     "useDefaultPatterns": true,
-    "customPatterns": [
-      ".gitignore",
-      "bun.lockb",
-      "repomix.config.json",
-      "relay.config.json",
-      "README.md",
-      ".relay",
-      "docs",
-      "tsconfig.tsbuildinfo",
-      "debug.ts"
-    ]
+    "customPatterns": []
   },
   "security": {
     "enableSecurityCheck": true

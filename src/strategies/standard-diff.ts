@@ -54,7 +54,7 @@ export const _parseHunks_for_debug = (diffContent: string): Hunk[] | null => {
   for (const line of lines) {
     if (line.startsWith("---") || line.startsWith("+++")) continue;
 
-    let match = line.match(hunkHeaderRegex);
+    const match = line.match(hunkHeaderRegex);
     if (match) {
       if (currentHunk) hunks.push(currentHunk);
       currentHunk = {

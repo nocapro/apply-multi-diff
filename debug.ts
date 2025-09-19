@@ -38,7 +38,7 @@ interface TestFixtures {
 
 // --- Helper to load fixtures ---
 const loadFixturesFromDir = (dirPath: string): ApplyDiffTestCase[] => {
-  let allTests: ApplyDiffTestCase[] = [];
+  const allTests: ApplyDiffTestCase[] = [];
   const files = fs.readdirSync(dirPath);
   for (const file of files) {
     if (path.extname(file) === ".yml" || path.extname(file) === ".yaml") {
@@ -91,7 +91,7 @@ const debugSearchReplace = (testCase: ApplyDiffTestCase) => {
   if (!blocks) { console.error('Failed to parse blocks.'); return; }
   console.log(`Found ${blocks.length} block(s).`);
 
-  let currentContent = original_content;
+  const currentContent = original_content;
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];

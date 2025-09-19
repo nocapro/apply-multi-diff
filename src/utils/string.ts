@@ -7,7 +7,7 @@ export const levenshtein = (s1: string, s2: string): number => {
   }
   let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
   for (let i = 0; i < s1.length; i++) {
-    let currentRow = [i + 1];
+    const currentRow = [i + 1];
     for (let j = 0; j < s2.length; j++) {
       const insertions = (previousRow[j + 1] ?? 0) + 1;
       const deletions = (currentRow[j] ?? 0) + 1;

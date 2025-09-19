@@ -9,4 +9,8 @@ export const ERROR_CODES = {
   INVALID_LINE_RANGE: "INVALID_LINE_RANGE",
   SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
   SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
-} as const;
+} as const; 
+
+// Configuration for fuzzy matching in search-replace strategy
+export const DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS = 200; // Lines to search around an exact reference point
+export const DEFAULT_GLOBAL_FUZZY_SEARCH_CAP = 500; // Max lines to search if no good reference point is found

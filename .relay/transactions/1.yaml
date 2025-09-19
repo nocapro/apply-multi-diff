@@ -1,0 +1,639 @@
+uuid: ef02029e-473d-4c3d-b286-5d66d581e19d
+projectId: diff-apply
+createdAt: '2025-09-19T12:34:42.731Z'
+gitCommitMsg: >-
+  feat: Optimize search-replace fuzzy matching performance
+
+  Introduces windowed fuzzy search when `start_line` and `end_line` are not
+  provided in the search-replace strategy. This significantly reduces the search
+  range for expensive Levenshtein calculations, improving performance for large
+  search blocks.
+
+  - Added `DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS` and
+    `DEFAULT_GLOBAL_FUZZY_SEARCH_CAP` constants.
+  - Implemented logic in `_findBestMatch_for_debug` to:
+    - Use explicit `start_line`/`end_line` if provided.
+    - Otherwise, find a reference point (first significant line exact match)
+      and search within a window around it.
+    - Fallback to a capped search from the beginning if no reference point is found.
+promptSummary: >-
+  Optimized search-replace fuzzy matching for performance when start/end lines
+  are not provided.
+reasoning:
+  - >-
+    The performance bottleneck you're experiencing is primarily due to the
+    **Levenshtein distance calculations** within the fuzzy matching logic,
+    especially when searching for large blocks of code without a specified
+    `start_line` or `end_line`. In such cases, the algorithm currently searches
+    the entire file, leading to `O(N * M^2)` complexity, where `N` is the file
+    size (in lines) and `M` is the size of the search block (in characters).
+  - >-
+    To address this while maintaining the convenience of optional
+    `start_line`/`end_line`, I will implement a **windowed fuzzy search
+    strategy** in the `search-replace` algorithm:
+  - >-
+    1.  **New Configuration Constants**: I'll introduce
+    `DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS` and `DEFAULT_GLOBAL_FUZZY_SEARCH_CAP`
+    in `src/constants.ts`. These control how large the search window is when no
+    `start_line` or `end_line` is explicitly provided.
+  - '2.  **Smart Search Range Deduction**:'
+  - >-
+    *   If `start_line` or `end_line` *are* provided, the search will be
+    strictly limited to that range as before.
+  - '*   If they are *not* provided:'
+  - >-
+    *   The system will first attempt to find an *exact match* for the first
+    "significant" (non-empty, non-whitespace-only) line of the `SEARCH` block
+    anywhere in the file.
+  - >-
+    *   If a match is found, the expensive fuzzy Levenshtein search will then be
+    restricted to a narrow window (`DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS`)
+    centered around this exact line match. This dramatically reduces `N`.
+  - >-
+    *   If no such anchoring line is found (e.g., a very generic first line or a
+    short search block), the fuzzy search will fall back to a capped global
+    search, limiting the scan to `DEFAULT_GLOBAL_FUZZY_SEARCH_CAP` lines from
+    the beginning of the file. This prevents unbounded scans of very large
+    files.
+  - >-
+    This approach will significantly speed up patching operations for large
+    `SEARCH` blocks when `start_line` and `end_line` are omitted, as it will
+    constrain the expensive fuzzy search to a much smaller portion of the file.
+  - '---'
+operations:
+  - type: write
+    path: src/constants.ts
+    content: >
+      --- src/constants.ts
+
+      +++ src/constants.ts
+
+      @@ -12,4 +12,8 @@
+         INVALID_LINE_RANGE: "INVALID_LINE_RANGE",
+         SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
+         SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
+      -} as const;
+
+      +} as const; 
+
+      +
+
+      +// Configuration for fuzzy matching in search-replace strategy
+
+      +export const DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS = 200; // Lines to search
+      around an exact reference point
+
+      +export const DEFAULT_GLOBAL_FUZZY_SEARCH_CAP = 500; // Max lines to
+      search if no good reference point is found
+    patchStrategy: standard-diff
+  - type: write
+    path: src/strategies/search-replace.ts
+    content: >
+      --- src/strategies/search-replace.ts
+
+      +++ src/strategies/search-replace.ts
+
+      @@ -1,5 +1,9 @@
+
+      -import { ERROR_CODES } from "../constants";
+
+      +import {
+
+      +  ERROR_CODES,
+
+      +  DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS,
+
+      +  DEFAULT_GLOBAL_FUZZY_SEARCH_CAP,
+
+      +} from "../constants";
+       import type { ApplyDiffResult } from "../types";
+       import { createErrorResult } from "../utils/error";
+      -import { getCommonIndent, levenshtein, dedent } from "../utils/string";
+
+      +import { getCommonIndent, levenshtein } from "../utils/string";
+       
+       export const getToolDescription = (cwd: string): string => {
+         return `apply_diff Tool: Search and Replace
+      @@ -84,29 +88,67 @@
+       export const _findBestMatch_for_debug = (
+         sourceLines: readonly string[],
+         searchLines: readonly string[],
+      -  startLine: number,
+
+      -  endLine: number
+
+      +  startLineOpt: number | undefined,
+
+      +  endLineOpt: number | undefined
+       ): { index: number; distance: number } | null => {
+         if (searchLines.length === 0) return null; // Should not happen if called from applyDiff
+         
+      -  const searchStart = startLine - 1;
+
+      -  const searchEnd = endLine ?? sourceLines.length;
+
+      +  let effectiveSearchStart: number;
+
+      +  let effectiveSearchEnd: number;
+
+      +
+
+      +  if (typeof startLineOpt === "number" || typeof endLineOpt === "number")
+      {
+
+      +    // If explicit start/end lines are provided, use them
+
+      +    effectiveSearchStart = (startLineOpt ?? 1) - 1;
+
+      +    effectiveSearchEnd = endLineOpt ?? sourceLines.length;
+
+      +  } else {
+
+      +    // No explicit start/end lines: try to find a reference point to
+      narrow the search
+
+      +    let referenceIndex = -1;
+
+      +    const firstSignificantSearchLine = searchLines.find((l) =>
+      l.trim().length > 0);
+
+      +
+
+      +    if (firstSignificantSearchLine) {
+
+      +      // Find the first exact match of the first significant line of the
+      search pattern
+
+      +      for (let i = 0; i < sourceLines.length; i++) {
+
+      +        if (sourceLines[i] === firstSignificantSearchLine) {
+
+      +          referenceIndex = i;
+
+      +          break;
+
+      +        }
+
+      +      }
+
+      +    }
+
+      +
+
+      +    if (referenceIndex !== -1) {
+
+      +      // Center the search window around the reference point
+
+      +      effectiveSearchStart = Math.max(0, referenceIndex -
+      DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS);
+
+      +      effectiveSearchEnd = Math.min(
+
+      +        sourceLines.length,
+
+      +        referenceIndex + searchLines.length +
+      DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS
+
+      +      );
+
+      +    } else {
+
+      +      // Fallback: If no reference point, perform fuzzy search only
+      within a capped range from the beginning
+
+      +      // This is less ideal but prevents scanning the entire file with
+      large blocks.
+
+      +      effectiveSearchStart = 0;
+
+      +      effectiveSearchEnd = Math.min(sourceLines.length,
+      DEFAULT_GLOBAL_FUZZY_SEARCH_CAP);
+
+      +    }
+
+      +  }
+       
+         // Special case: searching for a single newline (whitespace removal)
+         if (searchLines.length === 1 && searchLines[0] === '') {
+           // Look for a blank line in the source within the search range
+      -    for (let i = searchStart; i < Math.min(searchEnd,
+      sourceLines.length); i++) {
+
+      +    for (let i = effectiveSearchStart; i < Math.min(effectiveSearchEnd,
+      sourceLines.length); i++) {
+             if (sourceLines[i] === '') {
+               return { index: i, distance: 0 };
+             }
+           }
+           return null;
+         }
+      +  
+
+      +  // Validate the search range before starting the main loop
+
+      +  const maxSearchIndex = effectiveSearchEnd - searchLines.length;
+
+      +  if (effectiveSearchStart > maxSearchIndex || effectiveSearchStart < 0)
+      {
+
+      +    return null; // Search block is larger than the search window, or
+      invalid range
+
+      +  }
+       
+         let bestMatchIndex = -1;
+         let minDistance = Infinity;
+         const searchText = searchLines.join("\n");
+         const trimmedSearchText = searchLines.map(l => l.trim()).join('\n');
+       
+      -  // Only search within the specified range
+
+      -  const actualSearchEnd = Math.min(searchEnd, sourceLines.length);
+
+      -  const maxSearchIndex = actualSearchEnd - searchLines.length;
+
+      -  
+
+      -  // If the search range is invalid, return null
+
+      -  if (searchStart > maxSearchIndex || searchStart < 0) {
+
+      -    return null;
+
+      -  }
+
+      -
+
+      -  for (let i = searchStart; i <= maxSearchIndex; i++) {
+
+      +  for (let i = effectiveSearchStart; i <= maxSearchIndex; i++) {
+           const slice = sourceLines.slice(i, i + searchLines.length);
+           // Compare trimmed content to be indentation-agnostic
+           const trimmedSliceText = slice.map(l => l.trim()).join('\n');
+    patchStrategy: standard-diff
+snapshot:
+  src/constants.ts: |-
+    export const ERROR_CODES = {
+      // Standard Diff Errors
+      INVALID_DIFF_FORMAT: "INVALID_DIFF_FORMAT",
+      OVERLAPPING_HUNKS: "OVERLAPPING_HUNKS",
+      CONTEXT_MISMATCH: "CONTEXT_MISMATCH",
+
+      // Search/Replace Errors
+      INSERTION_REQUIRES_LINE_NUMBER: "INSERTION_REQUIRES_LINE_NUMBER",
+      INVALID_LINE_RANGE: "INVALID_LINE_RANGE",
+      SEARCH_BLOCK_NOT_FOUND_IN_RANGE: "SEARCH_BLOCK_NOT_FOUND_IN_RANGE",
+      SEARCH_BLOCK_NOT_FOUND: "SEARCH_BLOCK_NOT_FOUND",
+    } as const;
+  src/strategies/search-replace.ts: >-
+    import { ERROR_CODES } from "../constants";
+
+    import type { ApplyDiffResult } from "../types";
+
+    import { createErrorResult } from "../utils/error";
+
+    import { getCommonIndent, levenshtein, dedent } from "../utils/string";
+
+
+    export const getToolDescription = (cwd: string): string => {
+      return `apply_diff Tool: Search and Replace
+
+    Targeted code changes using search/replace blocks. Supports fuzzy matching.
+
+
+    Parameters:
+      :file_path: Path to file relative to ${cwd}
+      :diff_content: Search/replace blocks
+      :start_line: (optional) Line to start search (required for insertions)
+      :end_line: (optional) Line to end search
+    Format:
+
+    <<<<< SEARCH
+
+    content to find
+
+    =======
+
+    replacement content
+
+    >>>>> REPLACE
+
+
+    Special cases:
+
+    - INSERT Insertion (note the empty SEARCH block and \`start_line\`):
+
+    <apply_diff file_path="src/app.ts" start_line="5">
+      src/app.ts
+      <<<<<<< SEARCH
+      =======
+      // Add a new configuration setting
+      const newConfig = initializeNewDependency();
+      >>>>>>> REPLACE
+    </apply_diff>
+
+
+    - current working directory ${cwd}`;
+
+    };
+
+
+    const stripLineNumbers = (text: string): string => {
+      const lines = text.split("\n");
+      const allLinesNumbered = lines
+        .filter((line) => line.trim() !== "")
+        .every((line) => /^\s*\d+\s*\|/.test(line));
+      if (!allLinesNumbered) return text;
+      return lines.map((line) => line.replace(/^\s*\d+\s*\|\s?/, "")).join("\n");
+    };
+
+
+    const cleanBlock = (block: string): string => {
+      // This function normalizes the content of a SEARCH or REPLACE block.
+      // The content from parsing includes newlines that frame the text.
+      // e.g., `\nfoo\nbar\n`. An empty block is `\n`. A block with one blank line is `\n\n`.
+      const cleaned = block.replace(/^\r?\n/, "");
+      if (cleaned === "\n" || cleaned === "\r\n") {
+        // It was `\n\n`, representing a search for a single blank line. Preserve it.
+        return cleaned;
+      }
+      return cleaned.replace(/\r?\n$/, "");
+    };
+
+
+    type SearchReplaceBlock = { search: string; replace: string };
+
+
+    export const _parseDiff_for_debug = (diffContent: string):
+    SearchReplaceBlock[] | null => {
+      const blocks: SearchReplaceBlock[] = [];
+      const searchMarker = /^\s*<<<<<<< SEARCH\s*$/m;
+      const replaceMarker = /^\s*>>>>>>> REPLACE\s*$/m;
+
+      let content = diffContent;
+      const firstLineEnd = content.indexOf("\n");
+      if (firstLineEnd !== -1 && !content.substring(0, firstLineEnd).includes("<<<<<<<")) {
+        content = content.substring(firstLineEnd + 1);
+      }
+
+      while (searchMarker.test(content)) {
+        const searchStart = content.search(searchMarker);
+        const replaceEndMatch = content.match(replaceMarker);
+        if (!replaceEndMatch || typeof replaceEndMatch.index === "undefined") break;
+        
+        const replaceEnd = replaceEndMatch.index + replaceEndMatch[0].length;
+        const blockContent = content.substring(searchStart, replaceEnd);
+        
+        const parts = blockContent.split(
+          /^\s*<<<<<<< SEARCH\s*$|^\s*=======*\s*$|^\s*>>>>>>> REPLACE\s*$/m
+        );
+        
+        if (parts.length >= 4) {
+          blocks.push({
+            search: stripLineNumbers(cleanBlock(parts[1] ?? '')),
+            replace: stripLineNumbers(cleanBlock(parts[2] ?? '')),
+          });
+        }
+        content = content.substring(replaceEnd);
+      }
+
+      return blocks.length > 0 ? blocks : null;
+    };
+
+
+    export const _findBestMatch_for_debug = (
+      sourceLines: readonly string[],
+      searchLines: readonly string[],
+      startLine: number,
+      endLine: number
+    ): { index: number; distance: number } | null => {
+      if (searchLines.length === 0) return null; // Should not happen if called from applyDiff
+      
+      const searchStart = startLine - 1;
+      const searchEnd = endLine ?? sourceLines.length;
+
+      // Special case: searching for a single newline (whitespace removal)
+      if (searchLines.length === 1 && searchLines[0] === '') {
+        // Look for a blank line in the source within the search range
+        for (let i = searchStart; i < Math.min(searchEnd, sourceLines.length); i++) {
+          if (sourceLines[i] === '') {
+            return { index: i, distance: 0 };
+          }
+        }
+        return null;
+      }
+
+      let bestMatchIndex = -1;
+      let minDistance = Infinity;
+      const searchText = searchLines.join("\n");
+      const trimmedSearchText = searchLines.map(l => l.trim()).join('\n');
+
+      // Only search within the specified range
+      const actualSearchEnd = Math.min(searchEnd, sourceLines.length);
+      const maxSearchIndex = actualSearchEnd - searchLines.length;
+      
+      // If the search range is invalid, return null
+      if (searchStart > maxSearchIndex || searchStart < 0) {
+        return null;
+      }
+
+      for (let i = searchStart; i <= maxSearchIndex; i++) {
+        const slice = sourceLines.slice(i, i + searchLines.length);
+        // Compare trimmed content to be indentation-agnostic
+        const trimmedSliceText = slice.map(l => l.trim()).join('\n');
+        const distance = levenshtein(trimmedSearchText, trimmedSliceText);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatchIndex = i;
+        }
+        if (distance === 0) break;
+      }
+      if (bestMatchIndex === -1) {
+        return null;
+      }
+      
+      const maxDistanceThreshold = Math.floor(searchText.length * 0.35);
+      if (minDistance > maxDistanceThreshold) {
+        return null;
+      }
+
+      if (minDistance > 0) {
+        // A potential fuzzy match was found, now apply stricter semantic checks.
+        const slice = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length);
+        const sliceText = slice.join('\n');
+
+        const stripComments = (text: string) => text.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '').trim();
+
+        const searchCode = stripComments(searchText);
+        const sliceCode = stripComments(sliceText);
+
+        // SEMANTIC CHECK 1: Numeric literals must match exactly in code.
+        const searchNumbers = searchCode.match(/\d+(\.\d+)?/g) || [];
+        const sliceNumbers = sliceCode.match(/\d+(\.\d+)?/g) || [];
+        // Only fail if there are numbers and they don't match.
+        if (searchNumbers.length > 0 && searchNumbers.join(',') !== sliceNumbers.join(',')) {
+            return null;
+        }
+        
+        // SEMANTIC CHECK 2: Don't match if it's a likely identifier substitution.
+        const searchWords = new Set(searchCode.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || []);
+        const sliceWords = new Set(sliceCode.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || []);
+        const diffSearch = [...searchWords].filter(w => !sliceWords.has(w) && w.length > 1);
+        const diffSlice = [...sliceWords].filter(w => !searchWords.has(w) && w.length > 1);
+        if (diffSearch.length > 0 && diffSlice.length > 0 && diffSearch.length === diffSlice.length) {
+            return null; // This indicates a likely 1-to-1 substitution of identifiers.
+        }
+
+        // SEMANTIC CHECK 3: Be more lenient with string literal content.
+        const searchStrings = searchCode.match(/["'](.*?)["']/g) || [];
+        const sliceStrings = sliceCode.match(/["'](.*?)["']/g) || [];
+        if (searchStrings.length === sliceStrings.length && searchStrings.length > 0) {
+          const searchWithoutStrings = searchCode.replace(/["'](.*?)["']/g, '""');
+          const sliceWithoutStrings = sliceCode.replace(/["'](.*?)["']/g, '""');
+          // If the code is nearly identical outside of the string literals...
+          if (levenshtein(searchWithoutStrings, sliceWithoutStrings) <= 2) {
+            // ...then check if the string change itself is minor or major.
+            const allSearchStrings = searchStrings.join('');
+            const allSliceStrings = sliceStrings.join('');
+            if (levenshtein(allSearchStrings, allSliceStrings) > Math.floor(allSearchStrings.length * 0.5)) {
+                return null; // The string content changed too much, likely a semantic change.
+            }
+          }
+        }
+      }
+
+      return { index: bestMatchIndex, distance: minDistance };
+    };
+
+
+    export const applyDiff = (
+      original_content: string,
+      diff_content: string,
+      options: { start_line?: number; end_line?: number } = {}
+    ): ApplyDiffResult => {
+      const blocks = _parseDiff_for_debug(diff_content);
+      if (!blocks) {
+        return createErrorResult(
+          ERROR_CODES.INVALID_DIFF_FORMAT,
+          "Invalid diff format. Could not parse any '<<<<<<< SEARCH'...'>>>>>>> REPLACE' blocks."
+        );
+      }
+
+      let currentContent = original_content;
+
+      for (const block of blocks) {
+        if (block.search === "") {
+          // Pure insertion
+          if (typeof options.start_line !== "number") {
+            return createErrorResult(
+              ERROR_CODES.INSERTION_REQUIRES_LINE_NUMBER,
+              "Insertion requires a start_line. A SEARCH block was empty, but no start_line was provided."
+            );
+          }
+          // Special case for inserting into an empty file
+          if (currentContent === "") {
+            currentContent = block.replace;
+            continue;
+          }
+
+          const lines = currentContent.split("\n");
+          const insertionIndex = Math.max(0, options.start_line - 1);
+
+          // Infer indentation from the insertion line or surrounding lines
+          let indent = "";
+          if (insertionIndex < lines.length) {
+            const currentLine = lines[insertionIndex];
+            const currentLineIndent = currentLine?.match(/^[ \t]*/)?.[0] || "";
+            if (insertionIndex > 0) {
+              const prevLine = lines[insertionIndex - 1];
+              const prevLineIndent = prevLine?.match(/^[ \t]*/)?.[0] || "";
+              const prevLineTrimmed = prevLine?.trim() ?? '';
+              // If current line is an outdent (like a closing brace), use previous line's indent
+              if (prevLineIndent.length > currentLineIndent.length && (currentLine?.trim()?.length ?? 0) > 0) {
+                indent = prevLineIndent;
+              } else if (prevLineTrimmed.endsWith('{') || prevLineTrimmed.endsWith('[') || prevLineTrimmed.endsWith('(')) {
+                // If previous line opens a block, indent by 4 spaces (common practice)
+                indent = prevLineIndent + '    ';
+              } else {
+                indent = currentLineIndent;
+              }
+            } else {
+              indent = currentLineIndent;
+            }
+          } else if (lines.length > 0) {
+            // If inserting at the very end, use indent of last line
+            const lastLine = lines[lines.length - 1];
+            indent = lastLine?.match(/^[ \t]*/)?.[0] || "";
+          }
+
+          const replaceLines = block.replace.split('\n');
+          const replaceBaseIndent = getCommonIndent(block.replace);
+          
+          const reindentedReplaceLines = replaceLines.map(line => {
+              if (line.trim() === "") return line;
+              const dedentedLine = line.startsWith(replaceBaseIndent)
+                ? line.substring(replaceBaseIndent.length)
+                : line;
+              return indent + dedentedLine;
+          });
+
+          lines.splice(insertionIndex, 0, ...reindentedReplaceLines);
+          currentContent = lines.join("\n");
+          continue;
+        }
+
+        const sourceLines = currentContent.split("\n");
+        // If block.search is just a newline, it means we are searching for a single blank line.
+        let searchLines: string[];
+        if (/^\n+$/.test(block.search)) {
+          // A search for N blank lines is represented by N \n's. This becomes an array of N empty strings.
+          searchLines = Array(block.search.length).fill('');
+        } else {
+          searchLines = block.search.split("\n");
+        }
+        const match = _findBestMatch_for_debug(sourceLines, searchLines, options.start_line ?? 1, options.end_line ?? sourceLines.length);
+
+        if (match === null) {
+          return createErrorResult(
+            ERROR_CODES.SEARCH_BLOCK_NOT_FOUND,
+            "Search block not found in the original content. The content to be replaced could not be located in the file, even with fuzzy matching."
+          );
+        }
+        
+        const { index: matchStartIndex } = match;
+        const matchEndIndex = matchStartIndex + searchLines.length;
+        
+        const sourceMatchBlock = sourceLines.slice(matchStartIndex, matchEndIndex).join('\n');
+        const sourceMatchIndent = getCommonIndent(sourceMatchBlock);
+
+        const replaceLines = block.replace ? block.replace.split('\n') : [];
+        const replaceBaseIndent = getCommonIndent(block.replace);
+        
+        // Standard replacement with indentation. The complex single-line logic was buggy.
+        // This is simpler and more reliable.
+        const reindentedReplaceLines = replaceLines.map(line => {
+            if (line.trim() === "") return line; // Preserve empty lines in replacement
+              const dedentedLine = line.startsWith(replaceBaseIndent)
+                ? line.substring(replaceBaseIndent.length)
+                : line;
+              return sourceMatchIndent + dedentedLine;
+            });
+
+        const newSourceLines = [
+          ...sourceLines.slice(0, matchStartIndex),
+          ...reindentedReplaceLines,
+          ...sourceLines.slice(matchEndIndex)
+        ];
+
+        currentContent = newSourceLines.join("\n");
+      }
+
+      return { success: true, content: currentContent };
+    };
+approved: true
+linesAdded: null
+linesRemoved: null
+linesDifference: null
+gitCommittedAt: null
+status: committed
+id: 1
