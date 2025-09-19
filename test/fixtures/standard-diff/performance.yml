@@ -72,38 +72,38 @@ apply_diff_tests:
             // Add a long comment line here to make the file bigger
             // This is a very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very very Vanya from India for pointing out that the speed is not wrong, that's it. It's just a different notation. So thank you so much for that, Vanya.
 
-And I love the emails that I'm getting. So keep them coming. You can email me at a [@] rithmschool [.] com, which is a at rhythm school dot com.
+        And I love the emails that I'm getting. So keep them coming. You can email me at a [@] rithmschool [.] com, which is a at rhythm school dot com.
 
-I know the address is a bit weird. It's because rhythm.com was already taken, so I had to make it rhythm-school.com.
+        I know the address is a bit weird. It's because rhythm.com was already taken, so I had to make it rhythm-school.com.
 
-But if you want to connect with me, feel free to do so. And I'm always looking for new ideas for episodes. So if you have something that you want me to talk about, let me know.
+        But if you want to connect with me, feel free to do so. And I'm always looking for new ideas for episodes. So if you have something that you want me to talk about, let me know.
 
-Okay, so let's jump back into our episode. So we're talking about...
+        Okay, so let's jump back into our episode. So we're talking about...
 
-### Building a Data Warehouse
+        ### Building a Data Warehouse
 
-So we're talking about building a data warehouse, right?
+        So we're talking about building a data warehouse, right?
 
-So we talked about...
+        So we talked about...
 
-*   the fact that a data warehouse is a centralized repository of data.
-*   It's designed for analytical queries.
-*   It's optimized for read operations rather than write operations.
-*   It typically contains historical data from various sources.
+        *   the fact that a data warehouse is a centralized repository of data.
+        *   It's designed for analytical queries.
+        *   It's optimized for read operations rather than write operations.
+        *   It typically contains historical data from various sources.
 
-Now, we also talked about the fact that it's important to understand the business requirements and goals.
+        Now, we also talked about the fact that it's important to understand the business requirements and goals.
 
 So before you start building your data warehouse, you need to understand:
 
-*   Why are you building it?
-*   What kind of questions do you want to answer?
-*   Who are the stakeholders?
-*   What kind of data do they need?
-*   What kind of reports do they need?
+        *   Why are you building it?
+        *   What kind of questions do you want to answer?
+        *   Who are the stakeholders?
+        *   What kind of data do they need?
+        *   What kind of reports do they need?
 
 So once you have a clear understanding of the business requirements and goals, the next step is to design the schema.
 
-### Schema Design
+        ### Schema Design
 
 So this is where you decide how your data will be organized in the data warehouse.
 
@@ -112,87 +112,87 @@ And there are two main approaches to schema design for data warehouses:
 1.  **Star Schema**
 2.  **Snowflake Schema**
 
-Now, these are very common terms in data warehousing. And if you're going to be a data engineer, you're going to be hearing these terms a lot.
+        Now, these are very common terms in data warehousing. And if you're going to be a data engineer, you're going to be hearing these terms a lot.
 
 So it's important to understand what they are and how they differ.
 
-#### Star Schema
+        #### Star Schema
 
 So a star schema is a simple, straightforward schema design that's commonly used in data warehouses.
 
 It consists of:
 
-*   **a central fact table**, and
-*   **a set of dimension tables** that surround the fact table, resembling a star.
+        *   **a central fact table**, and
+        *   **a set of dimension tables** that surround the fact table, resembling a star.
 
-##### Fact Table
+        ##### Fact Table
 
 So the fact table contains:
 
-*   the **measures** (or facts) that you want to analyze, and
-*   the **foreign keys** that link to the dimension tables.
+        *   the **measures** (or facts) that you want to analyze, and
+        *   the **foreign keys** that link to the dimension tables.
 
 So the measures are typically numerical values, such as:
 
-*   sales amount
-*   quantity
-*   profit
+        *   sales amount
+        *   quantity
+        *   profit
 
 So these are the things that you're going to be aggregating, summing up, averaging, and so on.
 
-##### Dimension Tables
+        ##### Dimension Tables
 
 The dimension tables contain:
 
-*   **descriptive attributes** that provide context to the measures.
+        *   **descriptive attributes** that provide context to the measures.
 
 So these attributes are used to:
 
-*   filter
-*   group
-*   and drill down into the data.
+        *   filter
+        *   group
+        *   and drill down into the data.
 
 So for example, if you have a sales fact table, your dimension tables might include:
 
-*   `date_dimension` (with attributes like year, quarter, month, day, day of week, etc.)
-*   `product_dimension` (with attributes like product name, category, brand, color, size, etc.)
-*   `customer_dimension` (with attributes like customer name, address, city, state, country, etc.)
-*   `store_dimension` (with attributes like store name, store type, store location, etc.)
+        *   `date_dimension` (with attributes like year, quarter, month, day, day of week, etc.)
+        *   `product_dimension` (with attributes like product name, category, brand, color, size, etc.)
+        *   `customer_dimension` (with attributes like customer name, address, city, state, country, etc.)
+        *   `store_dimension` (with attributes like store name, store type, store location, etc.)
 
 So this is what a star schema looks like. You have a central fact table, and then you have a set of dimension tables that surround it.
 
-##### Characteristics of Star Schema
+        ##### Characteristics of Star Schema
 
-*   **Denormalized:** Dimension tables in a star schema are typically denormalized. This means they contain redundant data to improve query performance. For example, a `product_dimension` table might include both `product_category` and `product_subcategory` in the same table, even though `product_subcategory` is dependent on `product_category`. This is done to avoid joins when querying.
+        *   **Denormalized:** Dimension tables in a star schema are typically denormalized. This means they contain redundant data to improve query performance. For example, a `product_dimension` table might include both `product_category` and `product_subcategory` in the same table, even though `product_subcategory` is dependent on `product_category`. This is done to avoid joins when querying.
 
-*   **Simplified Queries:** The star schema's simplicity makes it easy to understand and query. Most queries involve joining the fact table with a few dimension tables.
+        *   **Simplified Queries:** The star schema's simplicity makes it easy to understand and query. Most queries involve joining the fact table with a few dimension tables.
 
-*   **Faster Aggregation:** Because dimension tables are denormalized and the number of joins is minimized, star schemas generally offer faster aggregation query performance compared to more normalized designs.
+        *   **Faster Aggregation:** Because dimension tables are denormalized and the number of joins is minimized, star schemas generally offer faster aggregation query performance compared to more normalized designs.
 
-*   **Easier ETL:** The process of Extract, Transform, Load (ETL) is often simpler with a star schema because you're loading into relatively denormalized dimension tables.
+        *   **Easier ETL:** The process of Extract, Transform, Load (ETL) is often simpler with a star schema because you're loading into relatively denormalized dimension tables.
 
-##### When to use Star Schema
+        ##### When to use Star Schema
 
 Star schemas are generally preferred for:
 
-*   Simpler analytical needs.
-*   When query performance for aggregations is a top priority.
-*   When data models need to be easily understood by business users or BI tools.
+        *   Simpler analytical needs.
+        *   When query performance for aggregations is a top priority.
+        *   When data models need to be easily understood by business users or BI tools.
 
-#### Snowflake Schema
+        #### Snowflake Schema
 
 A snowflake schema is an extension of the star schema.
 
 It also consists of:
 
-*   **a central fact table**, and
-*   **a set of dimension tables**.
+        *   **a central fact table**, and
+        *   **a set of dimension tables**.
 
 However, in a snowflake schema, the **dimension tables are further normalized** into multiple related tables.
 
 This means that a dimension table in a star schema might be split into several smaller dimension tables in a snowflake schema.
 
-##### Example of Snowflake Schema
+        ##### Example of Snowflake Schema
 
 Let's take our `product_dimension` example from the star schema. In a star schema, it might look like this:
 
@@ -200,277 +200,277 @@ Let's take our `product_dimension` example from the star schema. In a star schem
 
 In a snowflake schema, the `product_dimension` might be normalized into:
 
-*   `product_dimension` (product_key, product_name, brand_key, category_key, color, size)
-*   `brand_dimension` (brand_key, brand_name, brand_description)
-*   `category_dimension` (category_key, category_name, subcategory_key)
-*   `subcategory_dimension` (subcategory_key, subcategory_name)
+        *   `product_dimension` (product_key, product_name, brand_key, category_key, color, size)
+        *   `brand_dimension` (brand_key, brand_name, brand_description)
+        *   `category_dimension` (category_key, category_name, subcategory_key)
+        *   `subcategory_dimension` (subcategory_key, subcategory_name)
 
 Notice how `brand_key` and `category_key` are foreign keys in the `product_dimension` that link to their respective normalized dimension tables. And `subcategory_key` is a foreign key in `category_dimension`.
 
 This creates a hierarchical structure for the dimensions, resembling a snowflake pattern.
 
-##### Characteristics of Snowflake Schema
+        ##### Characteristics of Snowflake Schema
 
-*   **Normalized Dimensions:** Dimension tables are fully or partially normalized, reducing data redundancy.
+        *   **Normalized Dimensions:** Dimension tables are fully or partially normalized, reducing data redundancy.
 
-*   **More Joins:** Queries in a snowflake schema often require more joins due to the normalized dimensions. For example, to get `product_category_name`, you would need to join the fact table with `product_dimension`, then `product_dimension` with `category_dimension`.
+        *   **More Joins:** Queries in a snowflake schema often require more joins due to the normalized dimensions. For example, to get `product_category_name`, you would need to join the fact table with `product_dimension`, then `product_dimension` with `category_dimension`.
 
-*   **Reduced Storage Space:** Because data redundancy is minimized, snowflake schemas typically require less storage space compared to star schemas.
+        *   **Reduced Storage Space:** Because data redundancy is minimized, snowflake schemas typically require less storage space compared to star schemas.
 
-*   **Complex Queries and ETL:** The increased normalization can lead to more complex queries and a more intricate ETL process.
+        *   **Complex Queries and ETL:** The increased normalization can lead to more complex queries and a more intricate ETL process.
 
-##### When to use Snowflake Schema
+        ##### When to use Snowflake Schema
 
 Snowflake schemas are generally preferred for:
 
-*   More complex analytical needs where dimensions have significant hierarchies or multiple attributes that can be normalized.
-*   When data integrity and normalization are highly important.
-*   When storage space is a significant concern (though this is less of a factor with modern data storage solutions).
-*   When the dimensions themselves are large and complex, and splitting them helps manage their complexity.
+        *   More complex analytical needs where dimensions have significant hierarchies or multiple attributes that can be normalized.
+        *   When data integrity and normalization are highly important.
+        *   When storage space is a significant concern (though this is less of a factor with modern data storage solutions).
+        *   When the dimensions themselves are large and complex, and splitting them helps manage their complexity.
 
-#### Star Schema vs. Snowflake Schema: Summary
+        #### Star Schema vs. Snowflake Schema: Summary
 
-| Feature              | Star Schema                                  | Snowflake Schema                                       |
-| :------------------- | :------------------------------------------- | :----------------------------------------------------- |
-| **Structure**        | Fact table + denormalized dimensions         | Fact table + normalized dimensions (hierarchical)      |
-| **Normalization**    | Denormalized dimensions                      | Normalized dimensions                                  |
-| **Data Redundancy**  | Higher                                       | Lower                                                  |
-| **Query Complexity** | Simpler (fewer joins)                        | More complex (more joins)                              |
-| **Query Performance**| Generally faster for aggregations            | Can be slower due to more joins                        |
-| **Storage Space**    | Higher                                       | Lower                                                  |
-| **ETL Complexity**   | Simpler                                      | More complex                                           |
-| **Ease of Use**      | Easier for business users/BI tools           | More challenging for business users/BI tools           |
+        | Feature              | Star Schema                                  | Snowflake Schema                                       |
+        | :------------------- | :------------------------------------------- | :----------------------------------------------------- |
+        | **Structure**        | Fact table + denormalized dimensions         | Fact table + normalized dimensions (hierarchical)      |
+        | **Normalization**    | Denormalized dimensions                      | Normalized dimensions                                  |
+        | **Data Redundancy**  | Higher                                       | Lower                                                  |
+        | **Query Complexity** | Simpler (fewer joins)                        | More complex (more joins)                              |
+        | **Query Performance**| Generally faster for aggregations            | Can be slower due to more joins                        |
+        | **Storage Space**    | Higher                                       | Lower                                                  |
+        | **ETL Complexity**   | Simpler                                      | More complex                                           |
+        | **Ease of Use**      | Easier for business users/BI tools           | More challenging for business users/BI tools           |
 
-In practice, a hybrid approach is often used, where some dimensions are denormalized (star-like) and others are more normalized (snowflake-like), depending on the specific business requirements and performance considerations.
+        In practice, a hybrid approach is often used, where some dimensions are denormalized (star-like) and others are more normalized (snowflake-like), depending on the specific business requirements and performance considerations.
 
-The choice between star and snowflake schema depends on:
+        The choice between star and snowflake schema depends on:
 
-*   the specific business requirements
-*   the complexity of the data
-*   the expected query patterns
-*   and the available storage and processing resources.
+        *   the specific business requirements
+        *   the complexity of the data
+        *   the expected query patterns
+        *   and the available storage and processing resources.
 
-For most data warehousing scenarios, the star schema is a good starting point due to its simplicity and query performance benefits. The snowflake schema is typically considered when there's a strong need for data normalization or when dealing with highly hierarchical and complex dimensions.
+        For most data warehousing scenarios, the star schema is a good starting point due to its simplicity and query performance benefits. The snowflake schema is typically considered when there's a strong need for data normalization or when dealing with highly hierarchical and complex dimensions.
 
 So this is all about schema design.
 
-Once you have your schema designed, the next step is to:
+        Once you have your schema designed, the next step is to:
 
-### Choose your Tools and Technologies
+        ### Choose your Tools and Technologies
 
 So this is where you decide what kind of:
 
-*   **database** you're going to use,
-*   what kind of **ETL tools** you're going to use, and
-*   what kind of **BI tools** you're going to use.
+        *   **database** you're going to use,
+        *   what kind of **ETL tools** you're going to use, and
+        *   what kind of **BI tools** you're going to use.
 
-#### Data Warehouse Databases
+        #### Data Warehouse Databases
 
-There are many different types of databases that you can use for your data warehouse.
+        There are many different types of databases that you can use for your data warehouse.
 
-Some popular options include:
+        Some popular options include:
 
-*   **Cloud Data Warehouses:**
+        *   **Cloud Data Warehouses:**
     *   **Amazon Redshift:** A fully managed, petabyte-scale data warehouse service.
     *   **Google BigQuery:** A highly scalable, serverless, and cost-effective data warehouse.
     *   **Snowflake:** A cloud-agnostic data warehouse that offers high scalability and flexibility.
     *   **Azure Synapse Analytics:** A unified analytics service that brings together enterprise data warehousing and Big Data analytics.
 
-*   **On-Premises Data Warehouses:**
+        *   **On-Premises Data Warehouses:**
     *   **Teradata:** A powerful, high-performance relational database management system designed for data warehousing.
     *   **Oracle Exadata:** An engineered system optimized for running Oracle Database workloads, including data warehouses.
     *   **Microsoft SQL Server:** A relational database management system that can be used for data warehousing with its SQL Server Analysis Services (SSAS) and SQL Server Integration Services (SSIS) components.
     *   **PostgreSQL:** An open-source relational database that can be used for smaller data warehouses or as a component in a larger data analytics architecture.
 
-The choice of database depends on factors like:
+        The choice of database depends on factors like:
 
-*   **Data volume:** How much data do you expect to store?
-*   **Query complexity:** How complex are your analytical queries?
-*   **Scalability requirements:** How much do you need to scale your data warehouse in the future?
-*   **Cost:** What's your budget for infrastructure and licensing?
-*   **Existing infrastructure:** Do you already have a preferred cloud provider or on-premises database?
+        *   **Data volume:** How much data do you expect to store?
+        *   **Query complexity:** How complex are your analytical queries?
+        *   **Scalability requirements:** How much do you need to scale your data warehouse in the future?
+        *   **Cost:** What's your budget for infrastructure and licensing?
+        *   **Existing infrastructure:** Do you already have a preferred cloud provider or on-premises database?
 
-#### ETL Tools
+        #### ETL Tools
 
-Once you have your data warehouse database, the next step is to get data into it. And this is where ETL (Extract, Transform, Load) tools come in.
+        Once you have your data warehouse database, the next step is to get data into it. And this is where ETL (Extract, Transform, Load) tools come in.
 
-ETL tools are used to:
+        ETL tools are used to:
 
-*   **Extract** data from various source systems (e.g., operational databases, SaaS applications, flat files).
-*   **Transform** the data to meet the data warehouse's schema requirements (e.g., cleaning, standardizing, aggregating, applying business rules).
-*   **Load** the transformed data into the data warehouse.
+        *   **Extract** data from various source systems (e.g., operational databases, SaaS applications, flat files).
+        *   **Transform** the data to meet the data warehouse's schema requirements (e.g., cleaning, standardizing, aggregating, applying business rules).
+        *   **Load** the transformed data into the data warehouse.
 
-Some popular ETL tools include:
+        Some popular ETL tools include:
 
-*   **Cloud-Native ETL/ELT Services:**
+        *   **Cloud-Native ETL/ELT Services:**
     *   **AWS Glue:** A fully managed extract, transform, and load (ETL) service that makes it easy for customers to prepare and load their data for analytics.
     *   **Azure Data Factory:** A cloud-based ETL and data integration service that allows you to create data-driven workflows for orchestrating data movement and transforming data at scale.
     *   **Google Cloud Dataflow:** A fully managed service for executing Apache Beam pipelines, enabling both batch and stream data processing.
 
-*   **Open Source ETL Tools:**
+        *   **Open Source ETL Tools:**
     *   **Apache Airflow:** A platform to programmatically author, schedule, and monitor workflows. It's often used to orchestrate ETL pipelines.
     *   **Talend Open Studio:** An open-source data integration tool that provides a graphical interface for designing and deploying ETL jobs.
     *   **Pentaho Data Integration (Kettle):** Another open-source ETL tool that offers a visual design environment and a wide range of connectors.
 
-*   **Commercial ETL Tools:**
+        *   **Commercial ETL Tools:**
     *   **Informatica PowerCenter:** A leading enterprise data integration platform.
     *   **IBM DataStage:** A powerful ETL tool for building data integration solutions.
 
-The choice of ETL tool depends on factors like:
+        The choice of ETL tool depends on factors like:
 
-*   **Data sources:** What kind of systems do you need to extract data from?
-*   **Transformation complexity:** How complex are the transformations you need to perform?
-*   **Data volume and velocity:** How much data do you need to process, and how quickly?
-*   **Integration with existing systems:** Does the tool integrate well with your current tech stack?
-*   **Developer skill set:** What tools are your data engineers familiar with?
-*   **Cost:** Licensing and operational costs.
+        *   **Data sources:** What kind of systems do you need to extract data from?
+        *   **Transformation complexity:** How complex are the transformations you need to perform?
+        *   **Data volume and velocity:** How much data do you need to process, and how quickly?
+        *   **Integration with existing systems:** Does the tool integrate well with your current tech stack?
+        *   **Developer skill set:** What tools are your data engineers familiar with?
+        *   **Cost:** Licensing and operational costs.
 
-#### Business Intelligence (BI) Tools
+        #### Business Intelligence (BI) Tools
 
 Once the data is in the data warehouse, business users need a way to access, analyze, and visualize it. This is where Business Intelligence (BI) tools come in.
 
-BI tools allow users to:
+        BI tools allow users to:
 
-*   Create interactive dashboards and reports.
-*   Perform ad-hoc queries.
-*   Drill down into data for deeper insights.
-*   Share insights with others.
+        *   Create interactive dashboards and reports.
+        *   Perform ad-hoc queries.
+        *   Drill down into data for deeper insights.
+        *   Share insights with others.
 
-Some popular BI tools include:
+        Some popular BI tools include:
 
-*   **Tableau:** A widely used, powerful data visualization and business intelligence tool.
-*   **Power BI:** Microsoft's interactive data visualization BI tool with strong integration with other Microsoft products.
-*   **Looker (Google Cloud Looker):** A modern data analytics platform that focuses on data exploration and a consistent data model.
-*   **Qlik Sense / QlikView:** Data discovery and visualization tools known for their associative data model.
-*   **Superset (Apache Superset):** An open-source, modern data exploration and visualization platform.
-*   **Metabase:** An open-source BI tool that aims to be simple for everyone in the company to ask questions and learn from data.
+        *   **Tableau:** A widely used, powerful data visualization and business intelligence tool.
+        *   **Power BI:** Microsoft's interactive data visualization BI tool with strong integration with other Microsoft products.
+        *   **Looker (Google Cloud Looker):** A modern data analytics platform that focuses on data exploration and a consistent data model.
+        *   **Qlik Sense / QlikView:** Data discovery and visualization tools known for their associative data model.
+        *   **Superset (Apache Superset):** An open-source, modern data exploration and visualization platform.
+        *   **Metabase:** An open-source BI tool that aims to be simple for everyone in the company to ask questions and learn from data.
 
-The choice of BI tool depends on factors like:
+        The choice of BI tool depends on factors like:
 
-*   **User skill set:** How technically proficient are your business users?
-*   **Visualization needs:** What kind of charts, graphs, and dashboards do you need?
-*   **Data source integration:** Does the tool connect easily to your data warehouse?
-*   **Cost:** Licensing and deployment costs.
-*   **Collaboration features:** How important are sharing and collaboration capabilities?
-*   **Scalability:** Can the tool handle the expected number of users and queries?
+        *   **User skill set:** How technically proficient are your business users?
+        *   **Visualization needs:** What kind of charts, graphs, and dashboards do you need?
+        *   **Data source integration:** Does the tool connect easily to your data warehouse?
+        *   **Cost:** Licensing and deployment costs.
+        *   **Collaboration features:** How important are sharing and collaboration capabilities?
+        *   **Scalability:** Can the tool handle the expected number of users and queries?
 
 So this is all about choosing your tools and technologies.
 
-Once you have your tools and technologies chosen, the next step is to:
+        Once you have your tools and technologies chosen, the next step is to:
 
-### Implement ETL Pipelines
+        ### Implement ETL Pipelines
 
 So this is where you actually build the ETL (Extract, Transform, Load) pipelines to move data from your source systems into your data warehouse.
 
 This involves:
 
-*   **Extracting** data from various source systems.
-*   **Transforming** the data to meet the data warehouse's schema requirements.
-*   **Loading** the transformed data into the data warehouse.
+        *   **Extracting** data from various source systems.
+        *   **Transforming** the data to meet the data warehouse's schema requirements.
+        *   **Loading** the transformed data into the data warehouse.
 
-#### Key Considerations for ETL Implementation:
+        #### Key Considerations for ETL Implementation:
 
-*   **Data Granularity:** Decide the level of detail you need in your data warehouse. Do you need transactional level data, or are aggregated summaries sufficient for your analytical needs?
-*   **Data Refresh Frequency:** How often does the data in the data warehouse need to be updated? This could be daily, hourly, near real-time, or even real-time, depending on business requirements.
-*   **Incremental vs. Full Loads:**
+        *   **Data Granularity:** Decide the level of detail you need in your data warehouse. Do you need transactional level data, or are aggregated summaries sufficient for your analytical needs?
+        *   **Data Refresh Frequency:** How often does the data in the data warehouse need to be updated? This could be daily, hourly, near real-time, or even real-time, depending on business requirements.
+        *   **Incremental vs. Full Loads:**
     *   **Full Loads:** Reloading all data from a source system. Simple but resource-intensive for large datasets.
     *   **Incremental Loads:** Only loading new or changed data since the last load. More complex to implement but highly efficient for ongoing updates. This often involves tracking timestamps, change data capture (CDC) mechanisms, or comparing checksums.
-*   **Data Quality Checks:** Implement robust data quality checks at various stages of the ETL pipeline to ensure the data loaded into the warehouse is accurate, consistent, and complete. This can include:
+        *   **Data Quality Checks:** Implement robust data quality checks at various stages of the ETL pipeline to ensure the data loaded into the warehouse is accurate, consistent, and complete. This can include:
     *   **Validation Rules:** Checking data types, formats, ranges, referential integrity.
     *   **Deduplication:** Identifying and removing duplicate records.
     *   **Completeness Checks:** Ensuring all required fields are populated.
     *   **Consistency Checks:** Verifying that data across different sources is consistent.
-*   **Error Handling and Logging:** Design comprehensive error handling mechanisms to gracefully manage issues during extraction, transformation, and loading. Implement detailed logging to monitor pipeline health, track data flow, and troubleshoot problems effectively.
-*   **Orchestration and Scheduling:** Use an orchestration tool (like Apache Airflow, AWS Step Functions, Azure Data Factory) to schedule and manage your ETL jobs. This ensures that pipelines run in the correct order, dependencies are met, and failures are handled.
-*   **Performance Optimization:** Optimize your ETL pipelines for performance, especially when dealing with large volumes of data. This might involve:
+        *   **Error Handling and Logging:** Design comprehensive error handling mechanisms to gracefully manage issues during extraction, transformation, and loading. Implement detailed logging to monitor pipeline health, track data flow, and troubleshoot problems effectively.
+        *   **Orchestration and Scheduling:** Use an orchestration tool (like Apache Airflow, AWS Step Functions, Azure Data Factory) to schedule and manage your ETL jobs. This ensures that pipelines run in the correct order, dependencies are met, and failures are handled.
+        *   **Performance Optimization:** Optimize your ETL pipelines for performance, especially when dealing with large volumes of data. This might involve:
     *   **Parallel Processing:** Running multiple transformation steps or data loads concurrently.
     *   **Batch Processing:** Grouping data into batches for efficient processing.
     *   **Indexing:** Ensuring appropriate indexes are on your data warehouse tables to speed up data loading and querying.
     *   **Partitioning:** Dividing large tables into smaller, more manageable partitions.
-*   **Security:** Ensure that data is secure throughout the ETL process, from source to warehouse. This includes:
+        *   **Security:** Ensure that data is secure throughout the ETL process, from source to warehouse. This includes:
     *   **Encryption:** Encrypting data in transit and at rest.
     *   **Access Controls:** Implementing strict access controls to ETL tools and data sources.
     *   **Data Masking/Anonymization:** Masking or anonymizing sensitive data if required.
 
-Implementing ETL pipelines is often the most complex and time-consuming part of building a data warehouse, as it involves integrating with various disparate systems and ensuring high data quality.
+        Implementing ETL pipelines is often the most complex and time-consuming part of building a data warehouse, as it involves integrating with various disparate systems and ensuring high data quality.
 
 So this is all about implementing ETL pipelines.
 
-Once you have your ETL pipelines implemented, the next step is to:
+        Once you have your ETL pipelines implemented, the next step is to:
 
-### Build Reporting and Dashboards
+        ### Build Reporting and Dashboards
 
 So this is where you use your BI tools to create reports and dashboards that allow business users to:
 
-*   Access
-*   Analyze
-*   And visualize the data in the data warehouse.
+        *   Access
+        *   Analyze
+        *   And visualize the data in the data warehouse.
 
-#### Key Considerations for Reporting and Dashboards:
+        #### Key Considerations for Reporting and Dashboards:
 
-*   **Understand User Needs:** Collaborate closely with business stakeholders to understand their analytical questions, KPIs (Key Performance Indicators), and reporting requirements. This ensures that the dashboards and reports deliver actual business value.
-*   **Design for Clarity and Usability:**
+        *   **Understand User Needs:** Collaborate closely with business stakeholders to understand their analytical questions, KPIs (Key Performance Indicators), and reporting requirements. This ensures that the dashboards and reports deliver actual business value.
+        *   **Design for Clarity and Usability:**
     *   **Intuitive Layouts:** Organize dashboards logically with clear titles, labels, and filters.
     *   **Appropriate Visualizations:** Choose the right chart types (bar charts, line charts, pie charts, tables, etc.) for the data being presented to ensure clarity and avoid misinterpretation.
     *   **Interactivity:** Enable drill-down, filtering, and sorting capabilities to allow users to explore data dynamically.
-*   **Performance:** Design reports and dashboards to be performant. Slow-loading dashboards will frustrate users and reduce adoption. This involves:
+        *   **Performance:** Design reports and dashboards to be performant. Slow-loading dashboards will frustrate users and reduce adoption. This involves:
     *   **Efficient Queries:** Ensuring the underlying queries to the data warehouse are optimized.
     *   **Aggregation Tables/Materialized Views:** For frequently accessed aggregated data, create pre-aggregated tables or materialized views in the data warehouse to speed up query execution.
     *   **Caching:** Utilize caching mechanisms in the BI tool or data warehouse where appropriate.
-*   **Data Governance and Security:**
+        *   **Data Governance and Security:**
     *   **Access Control:** Implement row-level and column-level security in the data warehouse or BI tool to ensure users only see data they are authorized to access.
     *   **Data Definitions:** Provide clear definitions for metrics and dimensions to ensure consistent understanding across the organization.
     *   **Version Control:** Manage different versions of reports and dashboards.
-*   **Scalability:** Ensure your reporting solution can scale as the number of users and data volume grows.
-*   **Training and Documentation:** Provide training to business users on how to use the BI tools and interpret the reports. Create comprehensive documentation for dashboards, metrics, and data sources.
-*   **Feedback Loop:** Establish a continuous feedback loop with users to iterate on and improve reports and dashboards. Business needs evolve, and reporting should evolve with them.
+        *   **Scalability:** Ensure your reporting solution can scale as the number of users and data volume grows.
+        *   **Training and Documentation:** Provide training to business users on how to use the BI tools and interpret the reports. Create comprehensive documentation for dashboards, metrics, and data sources.
+        *   **Feedback Loop:** Establish a continuous feedback loop with users to iterate on and improve reports and dashboards. Business needs evolve, and reporting should evolve with them.
 
-Effective reporting and dashboards are the culmination of the data warehouse project, transforming raw data into actionable business intelligence.
+        Effective reporting and dashboards are the culmination of the data warehouse project, transforming raw data into actionable business intelligence.
 
 So this is all about building reporting and dashboards.
 
-Once you have your reporting and dashboards built, the next step is to:
+        Once you have your reporting and dashboards built, the next step is to:
 
-### Maintenance and Optimization
+        ### Maintenance and Optimization
 
 So building a data warehouse is not a one-time project. It's an ongoing process that requires continuous maintenance and optimization.
 
-#### Key Aspects of Maintenance and Optimization:
+        #### Key Aspects of Maintenance and Optimization:
 
-*   **Monitoring:** Continuously monitor the data warehouse for performance, data quality, and system health. This includes monitoring:
+        *   **Monitoring:** Continuously monitor the data warehouse for performance, data quality, and system health. This includes monitoring:
     *   ETL job success/failure rates and execution times.
     *   Query performance and resource utilization (CPU, memory, disk I/O).
     *   Data freshness and completeness.
     *   Storage growth.
-*   **Performance Tuning:** Regularly review and tune the data warehouse for optimal performance. This might involve:
+        *   **Performance Tuning:** Regularly review and tune the data warehouse for optimal performance. This might involve:
     *   **Index Optimization:** Adding, modifying, or removing indexes based on query patterns.
     *   **Query Optimization:** Refactoring inefficient SQL queries in reports or ETL pipelines.
     *   **Table Partitioning:** Re-evaluating and adjusting table partitioning strategies as data grows.
     *   **Data Compaction/Vacuuming:** Performing regular maintenance tasks to reclaim space and improve query performance (e.g., in Redshift, BigQuery, Snowflake).
     *   **Resource Scaling:** Adjusting compute and storage resources based on demand.
-*   **Data Quality Management:** Proactively identify and resolve data quality issues. This could involve:
+        *   **Data Quality Management:** Proactively identify and resolve data quality issues. This could involve:
     *   Implementing new data validation rules in ETL.
     *   Cleaning historical data.
     *   Establishing data governance processes.
-*   **Schema Evolution:** As business requirements change, the data warehouse schema will likely need to evolve. This involves:
+        *   **Schema Evolution:** As business requirements change, the data warehouse schema will likely need to evolve. This involves:
     *   Adding new tables or columns.
     *   Modifying existing schema elements.
     *   Ensuring backward compatibility where necessary.
-*   **Security Updates and Access Management:** Regularly review and update security configurations, user roles, and access permissions. Ensure compliance with data privacy regulations.
-*   **Cost Management:** For cloud data warehouses, continuously monitor and optimize costs by:
+        *   **Security Updates and Access Management:** Regularly review and update security configurations, user roles, and access permissions. Ensure compliance with data privacy regulations.
+        *   **Cost Management:** For cloud data warehouses, continuously monitor and optimize costs by:
     *   Right-sizing compute resources.
     *   Optimizing storage tiers.
     *   Identifying and eliminating idle resources.
     *   Leveraging reserved instances or committed use discounts.
-*   **Documentation:** Keep documentation up-to-date, including schema definitions, ETL logic, data lineage, and report specifications. This is crucial for onboarding new team members and troubleshooting.
-*   **User Support and Training:** Provide ongoing support to business users and offer refresher training sessions on new features or best practices for using BI tools.
-*   **Backup and Recovery:** Ensure robust backup and disaster recovery strategies are in place and regularly tested to protect against data loss.
+        *   **Documentation:** Keep documentation up-to-date, including schema definitions, ETL logic, data lineage, and report specifications. This is crucial for onboarding new team members and troubleshooting.
+        *   **User Support and Training:** Provide ongoing support to business users and offer refresher training sessions on new features or best practices for using BI tools.
+        *   **Backup and Recovery:** Ensure robust backup and disaster recovery strategies are in place and regularly tested to protect against data loss.
 
-Effective maintenance and optimization ensure that the data warehouse remains a reliable, high-performing, and valuable asset for the organization over its lifecycle.
+        Effective maintenance and optimization ensure that the data warehouse remains a reliable, high-performing, and valuable asset for the organization over its lifecycle.
 
 So this is all about maintenance and optimization.
 
-#### Recap of Building a Data Warehouse
+        #### Recap of Building a Data Warehouse
 
 So let's recap the steps involved in building a data warehouse:
 
@@ -481,32 +481,32 @@ So let's recap the steps involved in building a data warehouse:
 5.  **Build Reporting and Dashboards:** Create visualizations and reports for business users.
 6.  **Maintenance and Optimization:** Continuously monitor, tune, and evolve the data warehouse.
 
-This comprehensive approach ensures that the data warehouse effectively serves its purpose of providing actionable insights to drive business decisions.
+        This comprehensive approach ensures that the data warehouse effectively serves its purpose of providing actionable insights to drive business decisions.
 
-### Data Lake vs. Data Warehouse
+        ### Data Lake vs. Data Warehouse
 
-Now, before we wrap up, I want to briefly touch upon the difference between a data lake and a data warehouse, because these terms are often used interchangeably, but they are different.
+        Now, before we wrap up, I want to briefly touch upon the difference between a data lake and a data warehouse, because these terms are often used interchangeably, but they are different.
 
-| Feature            | Data Lake                                     | Data Warehouse                                     |
-| :----------------- | :-------------------------------------------- | :------------------------------------------------- |
-| **Data Type**      | Raw, unstructured, semi-structured, structured| Structured, filtered, processed                    |
-| **Data Quality**   | Potentially low (raw data)                    | High (cleaned, transformed)                        |
-| **Schema**         | Schema-on-read (schema applied at query time) | Schema-on-write (schema defined before data load)  |
-| **Purpose**        | Exploration, data science, advanced analytics | Business reporting, BI, structured queries         |
-| **Users**          | Data scientists, data engineers              | Business analysts, BI users                        |
-| **Cost**           | Lower storage cost                            | Higher storage cost (for processed data)           |
-| **Performance**    | Slower for structured queries                 | Faster for structured queries                      |
-| **Data Volume**    | Very high (can store everything)              | High (stores relevant, processed data)             |
-| **Agility**        | High (flexible for new data types)            | Moderate (schema changes can be complex)           |
+        | Feature            | Data Lake                                     | Data Warehouse                                     |
+        | :----------------- | :-------------------------------------------- | :------------------------------------------------- |
+        | **Data Type**      | Raw, unstructured, semi-structured, structured| Structured, filtered, processed                    |
+        | **Data Quality**   | Potentially low (raw data)                    | High (cleaned, transformed)                        |
+        | **Schema**         | Schema-on-read (schema applied at query time) | Schema-on-write (schema defined before data load)  |
+        | **Purpose**        | Exploration, data science, advanced analytics | Business reporting, BI, structured queries         |
+        | **Users**          | Data scientists, data engineers              | Business analysts, BI users                        |
+        | **Cost**           | Lower storage cost                            | Higher storage cost (for processed data)           |
+        | **Performance**    | Slower for structured queries                 | Faster for structured queries                      |
+        | **Data Volume**    | Very high (can store everything)              | High (stores relevant, processed data)             |
+        | **Agility**        | High (flexible for new data types)            | Moderate (schema changes can be complex)           |
 
-#### Analogy:
+        #### Analogy:
 
-*   **Data Lake:** Imagine a vast, natural lake where all sorts of water (fresh, murky, etc.) from various rivers and streams flows in and collects in its raw form. You can take water samples for any purpose, but you might need to filter and purify it yourself before drinking or using it for specific applications.
-*   **Data Warehouse:** Imagine a meticulously organized reservoir. Water from the lake is pumped into a filtration plant, thoroughly cleaned, treated, and then stored in specific, well-labeled tanks (like "drinking water," "irrigation water"). It's ready for immediate consumption or specific uses, but you only have the processed, clean water, not the raw stuff.
+        *   **Data Lake:** Imagine a vast, natural lake where all sorts of water (fresh, murky, etc.) from various rivers and streams flows in and collects in its raw form. You can take water samples for any purpose, but you might need to filter and purify it yourself before drinking or using it for specific applications.
+        *   **Data Warehouse:** Imagine a meticulously organized reservoir. Water from the lake is pumped into a filtration plant, thoroughly cleaned, treated, and then stored in specific, well-labeled tanks (like "drinking water," "irrigation water"). It's ready for immediate consumption or specific uses, but you only have the processed, clean water, not the raw stuff.
 
-#### Relationship:
+        #### Relationship:
 
-Often, data lakes and data warehouses are used together:
+        Often, data lakes and data warehouses are used together:
 
 1.  **Data Ingestion:** Raw data from various sources lands in the Data Lake.
 2.  **Data Processing:** Data engineers use the Data Lake to clean, transform, and prepare data for specific analytical uses.
@@ -517,8 +517,8 @@ This combined approach leverages the flexibility of the Data Lake for raw data s
 
 So I hope that clarifies the difference between a data lake and a data warehouse.
 
-And that brings us to the end of our episode on building a data warehouse.
+        And that brings us to the end of our episode on building a data warehouse.
 
-Thank you so much for tuning in. And I'll see you in the next episode.
+        Thank you so much for tuning in. And I'll see you in the next episode.
 
-Happy coding!
+        Happy coding!

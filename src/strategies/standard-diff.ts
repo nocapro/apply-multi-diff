@@ -199,18 +199,27 @@ export const _findAndApplyHunk_for_debug = (
   );
 
   if (searchWindowStart < sourceLines.length - pattern.length) { // Ensure there's a valid window
-    for (let i = searchWindowStart; i <= Math.min(searchWindowEnd - pattern.length, sourceLines.length - pattern.length); i++) {
-      const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
-      const distance = levenshtein(patternText, sliceText);
-      if (distance < minDistance) {
-        minDistance = distance;
-        bestMatchIndex = i;
+    // For large patterns, use optimized search
+    if (pattern.length > 50) {
+      const optimizedResult = findLargePatternMatch(sourceLines, pattern, searchWindowStart, Math.min(searchWindowEnd - pattern.length, sourceLines.length - pattern.length));
+      if (optimizedResult) {
+        return { success: true, newLines: applyHunkAt(sourceLines, hunk, optimizedResult.index) };
       }
-      if (distance === 0) break; // Perfect match found, no need to search further
-    }
+    } else {
+      // Regular search for smaller patterns
+      for (let i = searchWindowStart; i <= Math.min(searchWindowEnd - pattern.length, sourceLines.length - pattern.length); i++) {
+        const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
+        const distance = levenshtein(patternText, sliceText);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatchIndex = i;
+        }
+        if (distance === 0) break; // Perfect match found, no need to search further
+      }
 
-    if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
-      return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
+      if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
+        return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
+      }
     }
   }
 
@@ -221,19 +230,28 @@ export const _findAndApplyHunk_for_debug = (
 
   const globalSearchCap = Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP);
   if (globalSearchCap - pattern.length >= 0) { // Ensure search cap allows for pattern length
-    for (let i = 0; i <= globalSearchCap - pattern.length; i++) {
-      const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
-      const distance = levenshtein(patternText, sliceText);
-      if (distance < minDistance) {
-        minDistance = distance;
-        bestMatchIndex = i;
+    // For large patterns, use optimized global search
+    if (pattern.length > 50) {
+      const optimizedResult = findLargePatternMatch(sourceLines, pattern, 0, globalSearchCap - pattern.length);
+      if (optimizedResult) {
+        return { success: true, newLines: applyHunkAt(sourceLines, hunk, optimizedResult.index) };
       }
-      if (distance === 0) break; // Perfect match found
-    }
-  }
+    } else {
+      // Regular global search for smaller patterns
+      for (let i = 0; i <= globalSearchCap - pattern.length; i++) {
+        const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
+        const distance = levenshtein(patternText, sliceText);
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatchIndex = i;
+        }
+        if (distance === 0) break; // Perfect match found
+      }
 
-  if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
-    return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
+      if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
+        return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
+      }
+    }
   }
   return { success: false };
 };
@@ -293,4 +311,138 @@ export const applyDiff = (
   }
   
   return { success: true, content };
+};
+
+// Optimized matching for large patterns in standard diff
+const findLargePatternMatch = (
+  sourceLines: readonly string[],
+  pattern: readonly string[],
+  searchStart: number,
+  maxSearchIndex: number
+): { index: number; distance: number } | null => {
+  // For large patterns, use a multi-phase approach similar to search-replace optimization
+  
+  const patternFirstLine = pattern[0]?.trim() || '';
+  const patternLastLine = pattern[pattern.length - 1]?.trim() || '';
+  const patternMiddleLine = pattern[Math.floor(pattern.length / 2)]?.trim() || '';
+  
+  const candidates: number[] = [];
+  
+  // Phase 1: Find positions where first and last lines could match
+  for (let i = searchStart; i <= maxSearchIndex; i++) {
+    const sourceFirstLine = sourceLines[i]?.trim() || '';
+    const sourceLastLine = sourceLines[i + pattern.length - 1]?.trim() || '';
+    const sourceMiddleLine = sourceLines[i + Math.floor(pattern.length / 2)]?.trim() || '';
+    
+    // Quick similarity check on key lines
+    const firstSimilar = quickSimilarity(patternFirstLine, sourceFirstLine) > 0.6;
+    const lastSimilar = quickSimilarity(patternLastLine, sourceLastLine) > 0.6;
+    const middleSimilar = quickSimilarity(patternMiddleLine, sourceMiddleLine) > 0.6;
+    
+    // Accept if any two anchor points match, or even just first line with reasonable similarity
+    if ((firstSimilar && lastSimilar) || (firstSimilar && middleSimilar) || (lastSimilar && middleSimilar) || firstSimilar) {
+      candidates.push(i);
+    }
+  }
+  
+  // If still no candidates, use a very broad search
+  if (candidates.length === 0) {
+    for (let i = searchStart; i <= maxSearchIndex; i++) {
+      const sourceFirstLine = sourceLines[i]?.trim() || '';
+      // Look for any line that has some similarity or contains key content
+      if (quickSimilarity(patternFirstLine, sourceFirstLine) > 0.3 || 
+          (patternFirstLine.length > 10 && sourceFirstLine.includes(patternFirstLine.substring(0, Math.min(10, patternFirstLine.length))))) {
+        candidates.push(i);
+      }
+    }
+  }
+  
+  // Phase 2: Evaluate candidates with full comparison
+  let bestMatchIndex = -1;
+  let minDistance = Infinity;
+  const patternText = pattern.join("\n");
+  
+  for (const candidateIndex of candidates) {
+    const slice = sourceLines.slice(candidateIndex, candidateIndex + pattern.length);
+    const sliceText = slice.join("\n");
+    
+    // Use faster approximate distance for large patterns
+    const distance = approximateDistance(patternText, sliceText);
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestMatchIndex = candidateIndex;
+    }
+    
+    // Early termination for exact matches
+    if (distance === 0) break;
+  }
+  
+  if (bestMatchIndex === -1) {
+    return null;
+  }
+  
+  // Use a more lenient threshold for large patterns
+  const distanceRatio = pattern.length > 100 ? 0.4 : 0.3;
+  const maxDistanceThreshold = Math.floor(patternText.length * distanceRatio);
+  if (minDistance > maxDistanceThreshold) {
+    return null;
+  }
+  
+  return { index: bestMatchIndex, distance: minDistance };
+};
+
+// Quick similarity check for line matching
+const quickSimilarity = (str1: string, str2: string): number => {
+  if (str1 === str2) return 1.0;
+  if (str1.length === 0 && str2.length === 0) return 1.0;
+  if (str1.length === 0 || str2.length === 0) return 0.0;
+  
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const maxLen = Math.max(len1, len2);
+  
+  // Simple character overlap ratio
+  let matches = 0;
+  const minLen = Math.min(len1, len2);
+  for (let i = 0; i < minLen; i++) {
+    if (str1[i] === str2[i]) {
+      matches++;
+    }
+  }
+  
+  return matches / maxLen;
+};
+
+// Faster approximate distance calculation for large texts
+const approximateDistance = (str1: string, str2: string): number => {
+  if (str1 === str2) return 0;
+  
+  // For large strings, use a sampling approach
+  if (str1.length > 1000 || str2.length > 1000) {
+    const sampleSize = Math.min(1000, Math.max(str1.length, str2.length) / 3);
+    
+    // Sample from beginning, middle, and end for better coverage
+    const beginSize = Math.floor(sampleSize / 3);
+    const midSize = Math.floor(sampleSize / 3);
+    const endSize = sampleSize - beginSize - midSize;
+    
+    const midStart1 = Math.floor(str1.length / 2) - Math.floor(midSize / 2);
+    const midStart2 = Math.floor(str2.length / 2) - Math.floor(midSize / 2);
+    
+    const sample1 = str1.substring(0, beginSize) + 
+                   str1.substring(Math.max(0, midStart1), Math.max(0, midStart1) + midSize) +
+                   str1.substring(Math.max(0, str1.length - endSize));
+    
+    const sample2 = str2.substring(0, beginSize) + 
+                   str2.substring(Math.max(0, midStart2), Math.max(0, midStart2) + midSize) +
+                   str2.substring(Math.max(0, str2.length - endSize));
+    
+    // Scale the sample distance back to full size, but be more conservative
+    const sampleDistance = levenshtein(sample1, sample2);
+    const scaleFactor = Math.max(str1.length, str2.length) / sampleSize;
+    return Math.floor(sampleDistance * scaleFactor * 0.8); // Apply 0.8 factor to be more lenient
+  }
+  
+  return levenshtein(str1, str2);
 };
