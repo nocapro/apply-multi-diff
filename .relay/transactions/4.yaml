@@ -1,0 +1,38 @@
+uuid: ae8d2235-9e6e-444f-8292-6927a442d815
+projectId: diff-apply
+createdAt: '2025-09-19T13:09:20.890Z'
+gitCommitMsg: >-
+  fix(build): Disable minification in tsup config
+
+  Disables minification in `tsup.config.ts` to improve readability of output
+  files for debugging purposes, especially in test environments.
+promptSummary: >-
+  Provided patch for tsup.config.ts to disable minification. No patches were
+  needed for test/strategies/search-replace.test.ts and
+  test/strategies/standard-diff.test.ts, as their existing fixture loading logic
+  already handles new YAML files.
+reasoning: []
+operations:
+  - type: write
+    path: '--- tsup.config.ts'
+    content: |-
+      +++ tsup.config.ts
+      @@ -8,7 +8,7 @@
+         sourcemap: true,
+         clean: true,
+         treeshake: true,
+      -  minify: true,
+      +  minify: false,
+         target: 'es2020',
+         outDir: 'dist',
+         bundle: false,
+    patchStrategy: replace
+snapshot:
+  '--- tsup.config.ts': null
+approved: true
+linesAdded: null
+linesRemoved: null
+linesDifference: null
+gitCommittedAt: null
+status: committed
+id: 4

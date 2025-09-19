@@ -26,8 +26,8 @@
     "package.json",
     "tsconfig.json",
     "tsup.config.ts",
-    "src"
-    // "test"
+    // "src"
+    "test"
     // "docs/took-very-long.md"
   ],
   "ignore": {
