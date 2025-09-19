@@ -116,7 +116,7 @@ export const _findBestMatch_for_debug = (
     let referenceIndex = -1;
     
     // For large search blocks, use multiple reference lines for better positioning
-    if (searchLines.length > 50) {
+    if (searchLines.length > 200) {
       const significantLines = searchLines
         .map((line, index) => ({ line: line.trim(), index }))
         .filter(({ line }) => line.length > 10) // Only consider substantial lines
@@ -180,7 +180,7 @@ export const _findBestMatch_for_debug = (
   }
 
   // For large search blocks, use more efficient matching strategies
-  if (searchLines.length > 50) {
+  if (searchLines.length > 200) {
     return findLargeBlockMatch(sourceLines, searchLines, effectiveSearchStart, maxSearchIndex);
   }
 
@@ -331,7 +331,9 @@ const findLargeBlockMatch = (
   
   // Use a more lenient threshold for large blocks, but still apply semantic checks
   const searchText = searchLines.join("\n");
-  const maxDistanceThreshold = Math.floor(searchText.length * 0.4);
+  // For very large blocks, be even more lenient with distance threshold
+  const distanceRatio = searchLines.length > 100 ? 0.6 : 0.4;
+  const maxDistanceThreshold = Math.floor(searchText.length * distanceRatio);
   if (minDistance > maxDistanceThreshold) {
     return null;
   }
@@ -394,14 +396,28 @@ const approximateDistance = (str1: string, str2: string): number => {
   
   // For large strings, use a sampling approach
   if (str1.length > 1000 || str2.length > 1000) {
-    const sampleSize = Math.min(500, Math.max(str1.length, str2.length) / 4);
-    const sample1 = str1.substring(0, sampleSize);
-    const sample2 = str2.substring(0, sampleSize);
+    const sampleSize = Math.min(1000, Math.max(str1.length, str2.length) / 3);
     
-    // Scale the sample distance back to full size
+    // Sample from beginning, middle, and end for better coverage
+    const beginSize = Math.floor(sampleSize / 3);
+    const midSize = Math.floor(sampleSize / 3);
+    const endSize = sampleSize - beginSize - midSize;
+    
+    const midStart1 = Math.floor(str1.length / 2) - Math.floor(midSize / 2);
+    const midStart2 = Math.floor(str2.length / 2) - Math.floor(midSize / 2);
+    
+    const sample1 = str1.substring(0, beginSize) + 
+                   str1.substring(Math.max(0, midStart1), Math.max(0, midStart1) + midSize) +
+                   str1.substring(Math.max(0, str1.length - endSize));
+    
+    const sample2 = str2.substring(0, beginSize) + 
+                   str2.substring(Math.max(0, midStart2), Math.max(0, midStart2) + midSize) +
+                   str2.substring(Math.max(0, str2.length - endSize));
+    
+    // Scale the sample distance back to full size, but be more conservative
     const sampleDistance = levenshtein(sample1, sample2);
     const scaleFactor = Math.max(str1.length, str2.length) / sampleSize;
-    return Math.floor(sampleDistance * scaleFactor);
+    return Math.floor(sampleDistance * scaleFactor * 0.8); // Apply 0.8 factor to be more lenient
   }
   
   return levenshtein(str1, str2);
@@ -512,7 +528,7 @@ export const applyDiff = (
     // For large blocks with complex indentation, use a more sophisticated approach
     let reindentedReplaceLines: string[];
     
-    if (searchLines.length > 50) {
+    if (searchLines.length > 200) {
       // For large blocks, preserve exact relative indentation structure
       // Find the minimum indentation in the replacement block (excluding empty lines)
       const nonEmptyReplaceLines = replaceLines.filter(line => line.trim() !== "");
