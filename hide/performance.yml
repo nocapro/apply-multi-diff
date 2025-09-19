@@ -80,7 +80,7 @@ But if you want to connect with me, feel free to do so. And I'm always looking f
 
 Okay, so let's jump back into our episode. So we're talking about...
 
-## Building a Data Warehouse
+### Building a Data Warehouse
 
 So we're talking about building a data warehouse, right?
 
@@ -103,7 +103,7 @@ So before you start building your data warehouse, you need to understand:
 
 So once you have a clear understanding of the business requirements and goals, the next step is to design the schema.
 
-## Schema Design
+### Schema Design
 
 So this is where you decide how your data will be organized in the data warehouse.
 
@@ -116,7 +116,7 @@ Now, these are very common terms in data warehousing. And if you're going to be 
 
 So it's important to understand what they are and how they differ.
 
-### Star Schema
+#### Star Schema
 
 So a star schema is a simple, straightforward schema design that's commonly used in data warehouses.
 
@@ -125,7 +125,7 @@ It consists of:
 *   **a central fact table**, and
 *   **a set of dimension tables** that surround the fact table, resembling a star.
 
-#### Fact Table
+##### Fact Table
 
 So the fact table contains:
 
@@ -140,7 +140,7 @@ So the measures are typically numerical values, such as:
 
 So these are the things that you're going to be aggregating, summing up, averaging, and so on.
 
-#### Dimension Tables
+##### Dimension Tables
 
 The dimension tables contain:
 
@@ -161,7 +161,7 @@ So for example, if you have a sales fact table, your dimension tables might incl
 
 So this is what a star schema looks like. You have a central fact table, and then you have a set of dimension tables that surround it.
 
-#### Characteristics of Star Schema
+##### Characteristics of Star Schema
 
 *   **Denormalized:** Dimension tables in a star schema are typically denormalized. This means they contain redundant data to improve query performance. For example, a `product_dimension` table might include both `product_category` and `product_subcategory` in the same table, even though `product_subcategory` is dependent on `product_category`. This is done to avoid joins when querying.
 
@@ -171,7 +171,7 @@ So this is what a star schema looks like. You have a central fact table, and the
 
 *   **Easier ETL:** The process of Extract, Transform, Load (ETL) is often simpler with a star schema because you're loading into relatively denormalized dimension tables.
 
-#### When to use Star Schema
+##### When to use Star Schema
 
 Star schemas are generally preferred for:
 
@@ -179,7 +179,7 @@ Star schemas are generally preferred for:
 *   When query performance for aggregations is a top priority.
 *   When data models need to be easily understood by business users or BI tools.
 
-### Snowflake Schema
+#### Snowflake Schema
 
 A snowflake schema is an extension of the star schema.
 
@@ -192,7 +192,7 @@ However, in a snowflake schema, the **dimension tables are further normalized** 
 
 This means that a dimension table in a star schema might be split into several smaller dimension tables in a snowflake schema.
 
-#### Example of Snowflake Schema
+##### Example of Snowflake Schema
 
 Let's take our `product_dimension` example from the star schema. In a star schema, it might look like this:
 
@@ -209,7 +209,7 @@ Notice how `brand_key` and `category_key` are foreign keys in the `product_dimen
 
 This creates a hierarchical structure for the dimensions, resembling a snowflake pattern.
 
-#### Characteristics of Snowflake Schema
+##### Characteristics of Snowflake Schema
 
 *   **Normalized Dimensions:** Dimension tables are fully or partially normalized, reducing data redundancy.
 
@@ -219,7 +219,7 @@ This creates a hierarchical structure for the dimensions, resembling a snowflake
 
 *   **Complex Queries and ETL:** The increased normalization can lead to more complex queries and a more intricate ETL process.
 
-#### When to use Snowflake Schema
+##### When to use Snowflake Schema
 
 Snowflake schemas are generally preferred for:
 
@@ -228,7 +228,7 @@ Snowflake schemas are generally preferred for:
 *   When storage space is a significant concern (though this is less of a factor with modern data storage solutions).
 *   When the dimensions themselves are large and complex, and splitting them helps manage their complexity.
 
-### Star Schema vs. Snowflake Schema: Summary
+#### Star Schema vs. Snowflake Schema: Summary
 
 | Feature              | Star Schema                                  | Snowflake Schema                                       |
 | :------------------- | :------------------------------------------- | :----------------------------------------------------- |
@@ -256,7 +256,7 @@ So this is all about schema design.
 
 Once you have your schema designed, the next step is to:
 
-## Choose your Tools and Technologies
+### Choose your Tools and Technologies
 
 So this is where you decide what kind of:
 
@@ -264,7 +264,7 @@ So this is where you decide what kind of:
 *   what kind of **ETL tools** you're going to use, and
 *   what kind of **BI tools** you're going to use.
 
-### Data Warehouse Databases
+#### Data Warehouse Databases
 
 There are many different types of databases that you can use for your data warehouse.
 
@@ -290,7 +290,7 @@ The choice of database depends on factors like:
 *   **Cost:** What's your budget for infrastructure and licensing?
 *   **Existing infrastructure:** Do you already have a preferred cloud provider or on-premises database?
 
-### ETL Tools
+#### ETL Tools
 
 Once you have your data warehouse database, the next step is to get data into it. And this is where ETL (Extract, Transform, Load) tools come in.
 
@@ -325,7 +325,7 @@ The choice of ETL tool depends on factors like:
 *   **Developer skill set:** What tools are your data engineers familiar with?
 *   **Cost:** Licensing and operational costs.
 
-### Business Intelligence (BI) Tools
+#### Business Intelligence (BI) Tools
 
 Once the data is in the data warehouse, business users need a way to access, analyze, and visualize it. This is where Business Intelligence (BI) tools come in.
 
@@ -358,7 +358,7 @@ So this is all about choosing your tools and technologies.
 
 Once you have your tools and technologies chosen, the next step is to:
 
-## Implement ETL Pipelines
+### Implement ETL Pipelines
 
 So this is where you actually build the ETL (Extract, Transform, Load) pipelines to move data from your source systems into your data warehouse.
 
@@ -368,7 +368,7 @@ This involves:
 *   **Transforming** the data to meet the data warehouse's schema requirements.
 *   **Loading** the transformed data into the data warehouse.
 
-### Key Considerations for ETL Implementation:
+#### Key Considerations for ETL Implementation:
 
 *   **Data Granularity:** Decide the level of detail you need in your data warehouse. Do you need transactional level data, or are aggregated summaries sufficient for your analytical needs?
 *   **Data Refresh Frequency:** How often does the data in the data warehouse need to be updated? This could be daily, hourly, near real-time, or even real-time, depending on business requirements.
@@ -398,7 +398,7 @@ So this is all about implementing ETL pipelines.
 
 Once you have your ETL pipelines implemented, the next step is to:
 
-## Build Reporting and Dashboards
+### Build Reporting and Dashboards
 
 So this is where you use your BI tools to create reports and dashboards that allow business users to:
 
@@ -406,7 +406,7 @@ So this is where you use your BI tools to create reports and dashboards that all
 *   Analyze
 *   And visualize the data in the data warehouse.
 
-### Key Considerations for Reporting and Dashboards:
+#### Key Considerations for Reporting and Dashboards:
 
 *   **Understand User Needs:** Collaborate closely with business stakeholders to understand their analytical questions, KPIs (Key Performance Indicators), and reporting requirements. This ensures that the dashboards and reports deliver actual business value.
 *   **Design for Clarity and Usability:**
@@ -431,11 +431,11 @@ So this is all about building reporting and dashboards.
 
 Once you have your reporting and dashboards built, the next step is to:
 
-## Maintenance and Optimization
+### Maintenance and Optimization
 
 So building a data warehouse is not a one-time project. It's an ongoing process that requires continuous maintenance and optimization.
 
-### Key Aspects of Maintenance and Optimization:
+#### Key Aspects of Maintenance and Optimization:
 
 *   **Monitoring:** Continuously monitor the data warehouse for performance, data quality, and system health. This includes monitoring:
     *   ETL job success/failure rates and execution times.
@@ -470,7 +470,7 @@ Effective maintenance and optimization ensure that the data warehouse remains a 
 
 So this is all about maintenance and optimization.
 
-### Recap of Building a Data Warehouse
+#### Recap of Building a Data Warehouse
 
 So let's recap the steps involved in building a data warehouse:
 
@@ -483,7 +483,7 @@ So let's recap the steps involved in building a data warehouse:
 
 This comprehensive approach ensures that the data warehouse effectively serves its purpose of providing actionable insights to drive business decisions.
 
-## Data Lake vs. Data Warehouse
+### Data Lake vs. Data Warehouse
 
 Now, before we wrap up, I want to briefly touch upon the difference between a data lake and a data warehouse, because these terms are often used interchangeably, but they are different.
 
@@ -499,12 +499,12 @@ Now, before we wrap up, I want to briefly touch upon the difference between a da
 | **Data Volume**    | Very high (can store everything)              | High (stores relevant, processed data)             |
 | **Agility**        | High (flexible for new data types)            | Moderate (schema changes can be complex)           |
 
-### Analogy:
+#### Analogy:
 
 *   **Data Lake:** Imagine a vast, natural lake where all sorts of water (fresh, murky, etc.) from various rivers and streams flows in and collects in its raw form. You can take water samples for any purpose, but you might need to filter and purify it yourself before drinking or using it for specific applications.
 *   **Data Warehouse:** Imagine a meticulously organized reservoir. Water from the lake is pumped into a filtration plant, thoroughly cleaned, treated, and then stored in specific, well-labeled tanks (like "drinking water," "irrigation water"). It's ready for immediate consumption or specific uses, but you only have the processed, clean water, not the raw stuff.
 
-### Relationship:
+#### Relationship:
 
 Often, data lakes and data warehouses are used together:
 
