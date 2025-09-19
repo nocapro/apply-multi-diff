@@ -1,7 +1,11 @@
-import { ERROR_CODES } from "../constants";
+import {
+  ERROR_CODES,
+  DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS,
+  DEFAULT_GLOBAL_FUZZY_SEARCH_CAP,
+} from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
-import { levenshtein } from "../utils/string";
+import { levenshtein, getCommonIndent } from "../utils/string";
 
 export type Hunk = {
   originalStartLine: number;
@@ -158,14 +162,14 @@ export const _findAndApplyHunk_for_debug = (
     return { success: true, newLines: result };
   }
 
-  // --- STAGE 1: Exact Match (Fast Path) ---
+  // --- STAGE 1: Exact Match at Expected Position (Fast Path) ---
   const expectedStartIndex = hunk.originalStartLine - 1;
   if (expectedStartIndex >= 0 && expectedStartIndex + pattern.length <= sourceLines.length) {
     const slice = sourceLines.slice(expectedStartIndex, expectedStartIndex + pattern.length);
     if (slice.join("\n") === pattern.join("\n")) {
       return { success: true, newLines: applyHunkAt(sourceLines, hunk, expectedStartIndex) };
     }
-  }
+  } // Fall through to fuzzy if exact match at expected pos fails
 
   const contextLineCount = hunk.lines.filter(l => l.startsWith(' ')).length;
   if (contextLineCount === 0 && pattern.length > 0 && hunk.originalLineCount > 0) {
@@ -178,26 +182,59 @@ export const _findAndApplyHunk_for_debug = (
     return { success: false };
   }
 
-  // --- STAGE 2: Fuzzy Match (Global Search) ---
+  // --- STAGE 2: Fuzzy Match (Windowed Search around originalStartLine) ---
   let bestMatchIndex = -1;
   let minDistance = Infinity;
   const patternText = pattern.join("\n");
   const maxDistanceThreshold = Math.floor(patternText.length * 0.20); // 20% threshold
 
-  for (let i = 0; i <= sourceLines.length - pattern.length; i++) {
-    const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
-    const distance = levenshtein(patternText, sliceText);
-    if (distance < minDistance) {
-      minDistance = distance;
-      bestMatchIndex = i;
+  // Define a search window around the expected originalStartLine
+  const searchWindowStart = Math.max(
+    0,
+    expectedStartIndex - DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS
+  );
+  const searchWindowEnd = Math.min(
+    sourceLines.length,
+    expectedStartIndex + pattern.length + DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS
+  );
+
+  if (searchWindowStart < sourceLines.length - pattern.length) { // Ensure there's a valid window
+    for (let i = searchWindowStart; i <= Math.min(searchWindowEnd - pattern.length, sourceLines.length - pattern.length); i++) {
+      const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
+      const distance = levenshtein(patternText, sliceText);
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestMatchIndex = i;
+      }
+      if (distance === 0) break; // Perfect match found, no need to search further
     }
-    if (distance === 0) break; // Perfect match found
+
+    if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
+      return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
+    }
+  }
+
+  // --- STAGE 3: Fallback Global Capped Fuzzy Search (if not found in window) ---
+  // Reset best match and distance for the global search
+  bestMatchIndex = -1;
+  minDistance = Infinity;
+
+  const globalSearchCap = Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP);
+  if (globalSearchCap - pattern.length >= 0) { // Ensure search cap allows for pattern length
+    for (let i = 0; i <= globalSearchCap - pattern.length; i++) {
+      const sliceText = sourceLines.slice(i, i + pattern.length).join("\n");
+      const distance = levenshtein(patternText, sliceText);
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestMatchIndex = i;
+      }
+      if (distance === 0) break; // Perfect match found
+    }
   }
 
   if (bestMatchIndex !== -1 && minDistance <= maxDistanceThreshold) {
     return { success: true, newLines: applyHunkAt(sourceLines, hunk, bestMatchIndex) };
   }
-
   return { success: false };
 };
 
