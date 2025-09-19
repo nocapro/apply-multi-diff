@@ -12,5 +12,5 @@ export const ERROR_CODES = {
 } as const; 
 
 // Configuration for fuzzy matching in search-replace strategy
-export const DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS = 200; // Lines to search around an exact reference point
-export const DEFAULT_GLOBAL_FUZZY_SEARCH_CAP = 500; // Max lines to search if no good reference point is found
+export const DEFAULT_FUZZY_SEARCH_WINDOW_RADIUS = 100; // Lines to search around an exact reference point
+export const DEFAULT_GLOBAL_FUZZY_SEARCH_CAP = 300; // Max lines to search if no good reference point is found

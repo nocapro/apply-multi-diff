@@ -114,14 +114,32 @@ export const _findBestMatch_for_debug = (
   } else {
     // No explicit start/end lines: try to find a reference point to narrow the search
     let referenceIndex = -1;
-    const firstSignificantSearchLine = searchLines.find((l) => l.trim().length > 0);
-
-    if (firstSignificantSearchLine) {
-      // Find the first exact match of the first significant line of the search pattern
-      for (let i = 0; i < sourceLines.length; i++) {
-        if (sourceLines[i] === firstSignificantSearchLine) {
-          referenceIndex = i;
-          break;
+    
+    // For large search blocks, use multiple reference lines for better positioning
+    if (searchLines.length > 50) {
+      const significantLines = searchLines
+        .map((line, index) => ({ line: line.trim(), index }))
+        .filter(({ line }) => line.length > 10) // Only consider substantial lines
+        .slice(0, 5); // Check first 5 significant lines
+        
+      for (const { line: searchLine, index: searchLineIndex } of significantLines) {
+        for (let i = 0; i < Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP); i++) {
+          if (sourceLines[i].trim() === searchLine) {
+            referenceIndex = i - searchLineIndex; // Adjust for position within search block
+            break;
+          }
+        }
+        if (referenceIndex !== -1) break;
+      }
+    } else {
+      const firstSignificantSearchLine = searchLines.find((l) => l.trim().length > 0);
+      if (firstSignificantSearchLine) {
+        // Find the first exact match of the first significant line of the search pattern
+        for (let i = 0; i < sourceLines.length; i++) {
+          if (sourceLines[i] === firstSignificantSearchLine) {
+            referenceIndex = i;
+            break;
+          }
         }
       }
     }
@@ -135,9 +153,12 @@ export const _findBestMatch_for_debug = (
       );
     } else {
       // Fallback: If no reference point, perform fuzzy search only within a capped range from the beginning
-      // This is less ideal but prevents scanning the entire file with large blocks.
+      // For large blocks, further restrict the search space
+      const searchCap = searchLines.length > 100 ? 
+        Math.min(DEFAULT_GLOBAL_FUZZY_SEARCH_CAP, searchLines.length * 2) : 
+        DEFAULT_GLOBAL_FUZZY_SEARCH_CAP;
       effectiveSearchStart = 0;
-      effectiveSearchEnd = Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP);
+      effectiveSearchEnd = Math.min(sourceLines.length, searchCap);
     }
   }
 
@@ -156,6 +177,11 @@ export const _findBestMatch_for_debug = (
   const maxSearchIndex = effectiveSearchEnd - searchLines.length;
   if (effectiveSearchStart > maxSearchIndex || effectiveSearchStart < 0) {
     return null; // Search block is larger than the search window, or invalid range
+  }
+
+  // For large search blocks, use more efficient matching strategies
+  if (searchLines.length > 50) {
+    return findLargeBlockMatch(sourceLines, searchLines, effectiveSearchStart, maxSearchIndex);
   }
 
   let bestMatchIndex = -1;
@@ -229,6 +255,156 @@ export const _findBestMatch_for_debug = (
   }
 
   return { index: bestMatchIndex, distance: minDistance };
+};
+
+// Optimized matching for large search blocks
+const findLargeBlockMatch = (
+  sourceLines: readonly string[],
+  searchLines: readonly string[],
+  searchStart: number,
+  maxSearchIndex: number
+): { index: number; distance: number } | null => {
+  // For large blocks, use a multi-phase approach:
+  // 1. Find potential matches using first/last line anchors
+  // 2. Quick content-based filtering 
+  // 3. Only do expensive Levenshtein on promising candidates
+
+  const searchFirstLine = searchLines[0]?.trim() || '';
+  const searchLastLine = searchLines[searchLines.length - 1]?.trim() || '';
+  const searchMiddleLine = searchLines[Math.floor(searchLines.length / 2)]?.trim() || '';
+  
+  const candidates: number[] = [];
+  
+  // Phase 1: Find positions where first and last lines could match
+  for (let i = searchStart; i <= maxSearchIndex; i++) {
+    const sourceFirstLine = sourceLines[i]?.trim() || '';
+    const sourceLastLine = sourceLines[i + searchLines.length - 1]?.trim() || '';
+    const sourceMiddleLine = sourceLines[i + Math.floor(searchLines.length / 2)]?.trim() || '';
+    
+    // Quick similarity check on key lines - be more lenient for large blocks
+    const firstSimilar = quickSimilarity(searchFirstLine, sourceFirstLine) > 0.6;
+    const lastSimilar = quickSimilarity(searchLastLine, sourceLastLine) > 0.6;
+    const middleSimilar = quickSimilarity(searchMiddleLine, sourceMiddleLine) > 0.6;
+    
+    // Accept if any two anchor points match, or even just first line with reasonable similarity
+    if ((firstSimilar && lastSimilar) || (firstSimilar && middleSimilar) || (lastSimilar && middleSimilar) || firstSimilar) {
+      candidates.push(i);
+    }
+  }
+  
+  // If still no candidates, use a very broad search
+  if (candidates.length === 0) {
+    for (let i = searchStart; i <= maxSearchIndex; i++) {
+      const sourceFirstLine = sourceLines[i]?.trim() || '';
+      // Look for any line that has some similarity or contains key content
+      if (quickSimilarity(searchFirstLine, sourceFirstLine) > 0.3 || 
+          (searchFirstLine.length > 10 && sourceFirstLine.includes(searchFirstLine.substring(0, Math.min(10, searchFirstLine.length))))) {
+        candidates.push(i);
+      }
+    }
+  }
+  
+  // Phase 2: Evaluate candidates with full comparison
+  let bestMatchIndex = -1;
+  let minDistance = Infinity;
+  const trimmedSearchText = searchLines.map(l => l.trim()).join('\n');
+  
+  for (const candidateIndex of candidates) {
+    const slice = sourceLines.slice(candidateIndex, candidateIndex + searchLines.length);
+    const trimmedSliceText = slice.map(l => l.trim()).join('\n');
+    
+    // Use a faster approximate distance for large blocks
+    const distance = approximateDistance(trimmedSearchText, trimmedSliceText);
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestMatchIndex = candidateIndex;
+    }
+    
+    // Early termination for exact matches
+    if (distance === 0) break;
+  }
+  
+  if (bestMatchIndex === -1) {
+    return null;
+  }
+  
+  // Use a more lenient threshold for large blocks, but still apply semantic checks
+  const searchText = searchLines.join("\n");
+  const maxDistanceThreshold = Math.floor(searchText.length * 0.4);
+  if (minDistance > maxDistanceThreshold) {
+    return null;
+  }
+  
+  // Apply the same semantic checks as the regular algorithm for consistency
+  if (minDistance > 0) {
+    const slice = sourceLines.slice(bestMatchIndex, bestMatchIndex + searchLines.length);
+    const sliceText = slice.join('\n');
+
+    const stripComments = (text: string) => text.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '').trim();
+
+    const searchCode = stripComments(searchText);
+    const sliceCode = stripComments(sliceText);
+
+    // SEMANTIC CHECK 1: Numeric literals must match exactly in code.
+    const searchNumbers = searchCode.match(/\d+(\.\d+)?/g) || [];
+    const sliceNumbers = sliceCode.match(/\d+(\.\d+)?/g) || [];
+    if (searchNumbers.length > 0 && searchNumbers.join(',') !== sliceNumbers.join(',')) {
+        return null;
+    }
+    
+    // SEMANTIC CHECK 2: Don't match if it's a likely identifier substitution.
+    const searchWords = new Set(searchCode.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || []);
+    const sliceWords = new Set(sliceCode.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || []);
+    const diffSearch = [...searchWords].filter(w => !sliceWords.has(w) && w.length > 1);
+    const diffSlice = [...sliceWords].filter(w => !searchWords.has(w) && w.length > 1);
+    if (diffSearch.length > 0 && diffSlice.length > 0 && diffSearch.length === diffSlice.length) {
+        return null;
+    }
+  }
+  
+  return { index: bestMatchIndex, distance: minDistance };
+};
+
+// Quick similarity check for line matching
+const quickSimilarity = (str1: string, str2: string): number => {
+  if (str1 === str2) return 1.0;
+  if (str1.length === 0 && str2.length === 0) return 1.0;
+  if (str1.length === 0 || str2.length === 0) return 0.0;
+  
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const maxLen = Math.max(len1, len2);
+  
+  // Simple character overlap ratio
+  let matches = 0;
+  const minLen = Math.min(len1, len2);
+  for (let i = 0; i < minLen; i++) {
+    if (str1[i] === str2[i]) {
+      matches++;
+    }
+  }
+  
+  return matches / maxLen;
+};
+
+// Faster approximate distance calculation for large texts
+const approximateDistance = (str1: string, str2: string): number => {
+  if (str1 === str2) return 0;
+  
+  // For large strings, use a sampling approach
+  if (str1.length > 1000 || str2.length > 1000) {
+    const sampleSize = Math.min(500, Math.max(str1.length, str2.length) / 4);
+    const sample1 = str1.substring(0, sampleSize);
+    const sample2 = str2.substring(0, sampleSize);
+    
+    // Scale the sample distance back to full size
+    const sampleDistance = levenshtein(sample1, sample2);
+    const scaleFactor = Math.max(str1.length, str2.length) / sampleSize;
+    return Math.floor(sampleDistance * scaleFactor);
+  }
+  
+  return levenshtein(str1, str2);
 };
 
 export const applyDiff = (
@@ -332,17 +508,49 @@ export const applyDiff = (
     const sourceMatchIndent = getCommonIndent(sourceMatchBlock);
 
     const replaceLines = block.replace ? block.replace.split('\n') : [];
-    const replaceBaseIndent = getCommonIndent(block.replace);
     
-    // Standard replacement with indentation. The complex single-line logic was buggy.
-    // This is simpler and more reliable.
-    const reindentedReplaceLines = replaceLines.map(line => {
-        if (line.trim() === "") return line; // Preserve empty lines in replacement
-          const dedentedLine = line.startsWith(replaceBaseIndent)
-            ? line.substring(replaceBaseIndent.length)
-            : line;
-          return sourceMatchIndent + dedentedLine;
+    // For large blocks with complex indentation, use a more sophisticated approach
+    let reindentedReplaceLines: string[];
+    
+    if (searchLines.length > 50) {
+      // For large blocks, preserve exact relative indentation structure
+      // Find the minimum indentation in the replacement block (excluding empty lines)
+      const nonEmptyReplaceLines = replaceLines.filter(line => line.trim() !== "");
+      if (nonEmptyReplaceLines.length === 0) {
+        reindentedReplaceLines = replaceLines;
+      } else {
+        const replaceBaseIndent = nonEmptyReplaceLines.reduce((shortest, line) => {
+          const currentIndent = line.match(/^[ \t]*/)?.[0] || "";
+          return currentIndent.length < shortest.length ? currentIndent : shortest;
+        }, nonEmptyReplaceLines[0]?.match(/^[ \t]*/)?.[0] || "");
+        
+        // For each line, calculate its relative indentation and reapply with source indent
+        reindentedReplaceLines = replaceLines.map(line => {
+          if (line.trim() === "") return line; // Preserve empty lines
+          
+          const lineIndent = line.match(/^[ \t]*/)?.[0] || "";
+          const lineContent = line.substring(lineIndent.length);
+          
+          // Calculate relative indentation beyond the base
+          let relativeIndent = "";
+          if (lineIndent.startsWith(replaceBaseIndent)) {
+            relativeIndent = lineIndent.substring(replaceBaseIndent.length);
+          }
+          
+          return sourceMatchIndent + relativeIndent + lineContent;
         });
+      }
+    } else {
+      // For smaller blocks, use the original logic
+      const replaceBaseIndent = getCommonIndent(block.replace);
+      reindentedReplaceLines = replaceLines.map(line => {
+        if (line.trim() === "") return line; // Preserve empty lines in replacement
+        const dedentedLine = line.startsWith(replaceBaseIndent)
+          ? line.substring(replaceBaseIndent.length)
+          : line;
+        return sourceMatchIndent + dedentedLine;
+      });
+    }
 
     const newSourceLines = [
       ...sourceLines.slice(0, matchStartIndex),
