@@ -5,7 +5,7 @@ import {
 } from "../constants";
 import type { ApplyDiffResult } from "../types";
 import { createErrorResult } from "../utils/error";
-import { levenshtein, getCommonIndent } from "../utils/string";
+import { levenshtein } from "../utils/string";
 
 export type Hunk = {
   originalStartLine: number;

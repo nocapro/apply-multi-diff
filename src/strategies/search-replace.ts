@@ -124,7 +124,7 @@ export const _findBestMatch_for_debug = (
         
       for (const { line: searchLine, index: searchLineIndex } of significantLines) {
         for (let i = 0; i < Math.min(sourceLines.length, DEFAULT_GLOBAL_FUZZY_SEARCH_CAP); i++) {
-          if (sourceLines[i].trim() === searchLine) {
+          if (sourceLines[i]?.trim() === searchLine) {
             referenceIndex = i - searchLineIndex; // Adjust for position within search block
             break;
           }
