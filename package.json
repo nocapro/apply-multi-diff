@@ -17,7 +17,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "bun run scripts/update-timestamp.ts && tsup",
     "test": "bun test"
   },
   "repository": {

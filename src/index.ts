@@ -12,3 +12,5 @@ export * from "./constants";
 export * from "./utils/error";
 export * from "./utils/logger";
 export * from "./utils/string";
+
+export const __LAST_MODIFIED__ = '2024-01-01 00:00:00';
