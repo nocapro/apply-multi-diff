@@ -1,3 +1,9 @@
+can we have strategy switcher feature?
+
+so when given patch of standart-diff but failed, then the system programmatically smartly convert that standart-diff patch to search-replace by also refine with latest context from file and then the system try to patch using search-replace. vice versa
+
+===
+
 add test case for below
 
 --- test/unit/Schema/ColumnHelpers.test.ts
